@@ -12,7 +12,7 @@ Versão 0.3.5-dev, Android 9+, sem root. Não é um emulador de celular: os jogo
 |---|---|
 | ![Modo realista PS1 com dois analógicos](docs/images/realistic-ps1.png) | ![Modo realista Mega Drive com seis botões](docs/images/realistic-mega.png) |
 | **NES** | **TV (sempre plana)** |
-| ![Modo realista NES](docs/images/realistic-nes.png) | Direcional, OK, Retornar, Início, Menu e botão **Volume**, que abre um painel com **Diminuir** e **Aumentar**. |
+| ![Modo realista NES](docs/images/realistic-nes.png) | ![Controle da TV plano com botão Volume](docs/images/tv-flat.png) |
 | **Game Boy** | **Arcade** |
 | ![Modo realista Game Boy](docs/images/realistic-gb.png) | ![Modo realista Arcade](docs/images/realistic-arcade.png) |
 

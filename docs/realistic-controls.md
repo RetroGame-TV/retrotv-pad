@@ -32,12 +32,17 @@ O botão Volume abre `TvVolumeDialog`, com Diminuir/Aumentar e sem fechamento a 
 
 O painel oferece conexão Google TV por Wi-Fi quando necessária e desativa os ajustes se essa conexão cair. A configuração usa descoberta e código de pareamento na TV; não exige permissão Bluetooth nem interrompe a conexão de jogo. Os botões físicos de volume do celular funcionam enquanto o app está em primeiro plano e conectado ao remoto, inclusive com o painel aberto. Sem conexão, o Android mantém o controle normal do volume local. Ao sair do app, a posse das teclas é limpa. Nenhum número de volume é inventado, e não há chamadas ao AudioManager do celular.
 
+| TV plana | Painel sem TV conectada |
+|---|---|
+| ![TV plana com Volume](images/tv-flat.png) | ![Painel de volume com opção para conectar a TV](images/tv-volume-panel.png) |
+
 ## Validação em 26/10/2026
 
 - Compilação do app e do APK de testes com JDK 21, SDK 35 e Gradle 8.9.
 - 34 testes JVM passaram, incluindo quatro testes novos de volume: bytes de protocolo, repetição das teclas físicas, desconexão durante um toque e limpeza ao sair.
-- O APK de instrumentação com 12 testes Android foi compilado. A execução desta versão foi bloqueada porque a revisão automática não pôde ser concluída após atingir o limite de uso; portanto, os novos testes de painel, gesto de Volume e TV plana ainda não foram executados.
-- A versão anterior, antes da alteração da TV/volume, teve dez testes Android aprovados em Android 11/API 30 x86 virtual. Os itens abaixo descrevem a cobertura dos testes, não uma nova execução da versão atual.
+- 12 testes Android passaram em Android 11/API 30 x86 virtual: três existentes, sete em `RealisticControllerTest` e dois em `TvVolumeAndroidTest`.
+- O painel de volume foi testado com um destino simulado: aumentar/diminuir repetidamente sem fechar, tecla física com painel aberto, atualização para desconectado e botão de conexão.
+- O gesto no botão Volume foi testado via MotionEvent: abre somente após toque completo, cancelar não abre e nenhum botão de jogo é enviado.
 - Modo clássico como padrão; preferência realista preservada ao recriar a View; mesmas áreas de toque nos dois modos; retorno pixel a pixel à aparência clássica ao desativar; entrada liberada ao alternar.
 - Todos os botões dos sete modelos foram pressionados e soltos via `MotionEvent`, conferindo suas máscaras.
 - Direcional diagonal com um segundo dedo em botão, soltura independente e `ACTION_CANCEL` nos sete modelos.
@@ -46,7 +51,7 @@ O painel oferece conexão Google TV por Wi-Fi quando necessária e desativa os a
 - Renderização pressionada diferente da neutra e retorno pixel a pixel ao desenho original após cancelar, nos sete modelos.
 - Resposta visual de pressão e soltura do direcional em todos os modelos, incluindo a alavanca Arcade e o anel da TV.
 - Lint: zero erros e 12 avisos; nove já existiam e três são sugestões de recursos de tradução do novo painel. Nenhum check foi desativado.
-- Capturas dos seis modelos de jogo no renderer Android em 1920×886/420 dpi. A captura antiga da TV 3D foi removida; a TV plana ainda não foi capturada no renderer.
+- Capturas dos seis modelos de jogo e da TV plana no renderer Android em 1920×886/420 dpi. O painel de volume foi capturado sem conexão real; seu funcionamento com TV física continua pendente.
 
 Comandos reproduzíveis (substitua o serial pelo seu emulador):
 
