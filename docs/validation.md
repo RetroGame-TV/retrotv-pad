@@ -2,7 +2,7 @@
 
 # Validação local — RetroTV Pad 0.1.0-dev
 
-Data: 24/10/2026. Compilação em Windows/JDK21, Android SDK35; renderer Android 11 x86 virtual. Não houve celular ou Philco física conectados.
+Data: 24/10/2026. Compilação em Windows/JDK21, Android SDK35; renderer Android 11 x86 virtual. Não houve celular ou TV de referência física conectados.
 
 ## Executado
 
@@ -25,6 +25,6 @@ TV: build debug x86 e ARMv7 pessoal passou, 7 testes JVM e lint passaram. Androi
 
 ## Pendente de hardware
 
-Pareamento HID celular–Philco, dois canais Bluetooth simultâneos, troca automática ponta a ponta, reconexão em ROM OEM, latência e mapeamento SDL no dispositivo real. Os testes virtuais e de protocolo não comprovam esses itens. Não há promessa de compatibilidade universal.
+Pareamento HID celular–TV, dois canais Bluetooth simultâneos, troca automática ponta a ponta, reconexão em ROM OEM, latência e mapeamento SDL no dispositivo real. Os testes virtuais e de protocolo não comprovam esses itens. Não há promessa de compatibilidade universal.
 
 Auto funciona com a integração RetroTV Lite 0.4; em outros emuladores é seleção manual. O importador é um subset do formato Delta, não executa Delta/iOS. Nenhum jogo/BIOS é incluído ou testado pelo app de controle. A variante da TV mantém as restrições pessoais e as limitações dos núcleos descritas no projeto RetroTV Lite.

@@ -52,8 +52,8 @@ Executado: 49 testes JVM (inclui mapeamento do controle da TV e do Início), lin
 ## Retornar · 0.3.1-dev
 Botão Retornar (↩) nos layouts de jogo, à direita da fileira de sistema, espelhando o Início; no controle da TV o rótulo passou de "Voltar" para "Retornar". Usa o bit 17 (nunca um botão de jogo), por isso funciona também no meio da partida. No Google TV vira a tecla Voltar. Executado: 49 testes JVM, lint 0 erros, teste com a TV virtual.
 
-## Teste na Philco e nomes de conexão · 0.3.2-dev
-Na Philco real o celular conectou pelo controle remoto do Google TV (porta 6466): primeira validação desse modo em aparelho físico; setas, OK e voltar navegam. Botões de jogo e AUTO não funcionavam porque o canal do RetroTV estava desligado na TV; esse modo só leva teclas de navegação. O menu Conectar agora diz "Jogar (RetroTV)" e "Só menus (controle remoto da TV)", com as opções de jogar sempre acima, e o status do controle remoto explica como ativar o modo de jogo. 49 testes JVM, lint 0 erros.
+## Teste na TV de referência e nomes de conexão · 0.3.2-dev
+Na TV de referência real o celular conectou pelo controle remoto do Google TV (porta 6466): primeira validação desse modo em aparelho físico; setas, OK e voltar navegam. Botões de jogo e AUTO não funcionavam porque o canal do RetroTV estava desligado na TV; esse modo só leva teclas de navegação. O menu Conectar agora diz "Jogar (RetroTV)" e "Só menus (controle remoto da TV)", com as opções de jogar sempre acima, e o status do controle remoto explica como ativar o modo de jogo. 49 testes JVM, lint 0 erros.
 
 ## Endereço IPv4 na descoberta · 0.3.3-dev
 A descoberta de TVs na rede passa a preferir o endereço IPv4: no Android 14+ a lista pode trazer primeiro um IPv6 local que um socket comum não alcança. 49 testes JVM, lint 0 erros.
