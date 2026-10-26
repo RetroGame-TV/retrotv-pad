@@ -23,6 +23,7 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     var customSkin:DeltaSkin?=null
     private val ink=Paint(Paint.ANTI_ALIAS_FLAG)
     private val art=PadArt()
+    private val realisticArt by lazy{RealisticPadArt()}
     private val input=PadInput()
     private var dirty=true
     private var scale=1f
@@ -47,6 +48,14 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     private fun offsetOf(group:String)=liveOffset[group]?:(prefs.getFloat("${scaleKey(group)}.x",0f)*logicalW to prefs.getFloat("${scaleKey(group)}.y",0f)*logicalH)
     private fun saveOffset(group:String,offset:Pair<Float,Float>){prefs.edit().putFloat("${scaleKey(group)}.x",offset.first/logicalW).putFloat("${scaleKey(group)}.y",offset.second/logicalH).apply()}
     private val prefs by lazy{context.getSharedPreferences("pad",Context.MODE_PRIVATE)}
+    var realisticAppearance=prefs.getBoolean("appearance.realistic",false)
+        private set
+    fun setRealisticAppearance(enabled:Boolean){
+        if(realisticAppearance==enabled)return
+        release();realisticAppearance=enabled
+        prefs.edit().putBoolean("appearance.realistic",enabled).apply()
+        invalidate()
+    }
     private fun scaleKey(group:String)="scale.${console.name}.$group"
     private fun scaleOf(group:String)=PadLayout.clamp(prefs.getFloat(scaleKey(group),1f))
     private fun setScale(group:String,value:Float){prefs.edit().putFloat(scaleKey(group),PadLayout.clamp(value)).apply();dirty=true;invalidate()}
@@ -239,8 +248,11 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     }
     private fun drawChip(canvas:Canvas){
         val b=chip;val dark=look.dark;val live=connectedName.isNotEmpty()
-        ink.shader=null;ink.style=Paint.Style.FILL;ink.color=if(dark)art.alpha(Color.WHITE,22) else art.alpha(Color.BLACK,26);canvas.drawRoundRect(b.x,b.y,b.x+b.w,b.y+b.h,b.h/2,b.h/2,ink)
-        ink.color=if(live)c("#5FCB7A") else c("#E0A25A");canvas.drawCircle(b.x+20f,b.y+b.h/2,4.5f,ink)
+        if(realisticAppearance&&imported==null&&RealisticPadArt.supports(console))realisticArt.chip(canvas,b,dark,live)
+        else{
+            ink.shader=null;ink.style=Paint.Style.FILL;ink.color=if(dark)art.alpha(Color.WHITE,22) else art.alpha(Color.BLACK,26);canvas.drawRoundRect(b.x,b.y,b.x+b.w,b.y+b.h,b.h/2,b.h/2,ink)
+            ink.color=if(live)c("#5FCB7A") else c("#E0A25A");canvas.drawCircle(b.x+20f,b.y+b.h/2,4.5f,ink)
+        }
         // AUTO only matters once a TV is connected; offline the chip invites to connect instead, so both fit.
         val label=console.label+when{!live->"  ·  conectar";automatic->"  ·  AUTO";else->""}
         text(canvas,b.x+b.w/2+8f,b.y+b.h/2+5f,label,13f,if(dark)c("#D8D2E2") else c("#4A4656"),true,b.w-44f,true)
@@ -266,6 +278,13 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     private fun centerOf(id:String)=input.controls.firstOrNull{it.id==id}?.box?.let{PointF(it.x+it.w/2,it.y+it.h/2)}
     private fun radiusOf(id:String)=input.controls.firstOrNull{it.id==id}?.let{it.box.w/2-(if(console==Console.SNES||console==Console.PS1)8f else if(console==Console.NES||console==Console.GB)6f else if(console==Console.TV)10f else 4f)}?:0f
     private fun drawConsole(canvas:Canvas,state:PadState){
+        if(realisticAppearance&&RealisticPadArt.supports(console)){
+            realisticArt.background(canvas,logicalW,logicalH,console,input.controls)
+            input.controls.sortedBy{if(it.kind=="dpad")0 else 1}.forEach{control->
+                realisticArt.control(canvas,control,state,console,pressed(control,state))
+            }
+            return
+        }
         val l=look;val mid=art.mix(l.top,l.bottom,.55f)
         ink.style=Paint.Style.FILL;ink.shader=LinearGradient(0f,0f,0f,logicalH,l.top,l.bottom,Shader.TileMode.CLAMP);canvas.drawRect(0f,0f,logicalW,logicalH,ink);ink.shader=null
         decor(canvas,l,mid)

@@ -6,15 +6,19 @@ Versão 0.3.5-dev, Android 9+, sem root. Não é um emulador de celular: os jogo
 
 ## Como é
 
-![Layout SNES](docs/images/layout-snes.png)
+![Modo realista SNES](docs/images/realistic-snes.png)
 
 | PS1 | Mega Drive |
 |---|---|
-| ![Layout PS1 com dois analógicos](docs/images/layout-ps1.png) | ![Layout Mega Drive com seis botões](docs/images/layout-mega.png) |
+| ![Modo realista PS1 com dois analógicos](docs/images/realistic-ps1.png) | ![Modo realista Mega Drive com seis botões](docs/images/realistic-mega.png) |
 | **NES** | **TV (navegar na galeria)** |
-| ![Layout NES](docs/images/layout-nes.png) | ![Controle remoto da TV com OK, Retornar, Início e Menu](docs/images/layout-tv.png) |
+| ![Modo realista NES](docs/images/realistic-nes.png) | ![Controle remoto da TV com OK, Retornar, Início e Menu](docs/images/layout-tv.png) |
 
-Em todos os layouts, ⌂ volta ao menu principal do RetroTV, ↩ volta um passo e ❚❚ pausa. Capturas da versão 0.3.5 em paisagem (o chip "conectar" aparece porque o celular de teste não estava ligado a uma TV).
+Em todos os layouts, ⌂ volta ao menu principal do RetroTV, ↩ volta um passo e ❚❚ pausa. A aparência **clássica continua como padrão**. Para ativar o modo adicional, toque no chip do console > **Mais opções > Aparência dos controles > Realista**. A escolha fica salva e pode ser revertida para **Clássica** a qualquer momento.
+
+No modo realista, NES, SNES, PS1 e Mega Drive têm acabamento tridimensional desenhado em Canvas: aros, rebaixos, plástico acetinado, botões convexos e analógicos de borracha. Ao apertar, a face afunda no encaixe fixo, diminui, escurece e perde a sombra de elevação. As formas e os símbolos são vetoriais; uma pequena textura procedural dá granulação ao material, sem imagens de controles ou botões. GB, Arcade, TV e skins importadas mantêm sua aparência.
+
+Capturas do modo realista em Android, em paisagem e sem conexão com uma TV; a imagem do controle TV continua clássica. O visual acompanha os ajustes de tamanho e posição em **Personalizar**. Veja os [testes e limites da validação visual](docs/realistic-controls.md).
 
 ## Formas de conexão
 

@@ -255,7 +255,7 @@ class PadActivity:Activity(),HidSession.Listener,RetroTvLink.Events,GoogleTvLink
     }
     private fun options(){
         controllerView.release()
-        AlertDialog.Builder(this).setTitle("RetroTV Pad").setItems(arrayOf("Diagnóstico de conexão","Importar skin Delta (.deltaskin)","Usar os layouts originais","Como trocar automaticamente","Créditos e licença")){_,i->
+        AlertDialog.Builder(this).setTitle("RetroTV Pad").setItems(arrayOf("Diagnóstico de conexão","Importar skin Delta (.deltaskin)","Usar os layouts originais","Como trocar automaticamente","Créditos e licença","Aparência dos controles")){_,i->
             when(i){
                 0->connectionReport()
                 1->startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"),60)
@@ -263,8 +263,15 @@ class PadActivity:Activity(),HidSession.Listener,RetroTvLink.Events,GoogleTvLink
                 3->message("Skins automáticas","Na TV, abra o RetroTV Lite e ative Ajustes > Controle pelo celular. No celular, conecte pelo RetroTV (Bluetooth ou Wi-Fi) e deixe o modo automático ligado. Ao abrir ou escolher um jogo, o console informa o layout.")
                 4->{val view=TextView(this).apply{text=assets.open("licenses/NOTICES.txt").bufferedReader().use{it.readText()}+"\n\n"+assets.open("licenses/GPL-3.0.txt").bufferedReader().use{it.readText()};setPadding(28,20,28,20);textSize=14f}
                     AlertDialog.Builder(this).setTitle("Fontes e créditos").setView(ScrollView(this).apply{addView(view)}).setPositiveButton("Fechar",null).show()}
+                5->appearance()
             }
         }.setNegativeButton("Voltar",null).show()
+    }
+    private fun appearance(){
+        AlertDialog.Builder(this).setTitle("Aparência dos controles")
+            .setSingleChoiceItems(arrayOf("Clássica (padrão)","Realista (mais detalhes e profundidade)"),if(controllerView.realisticAppearance)1 else 0){dialog,index->
+                controllerView.setRealisticAppearance(index==1);dialog.dismiss()
+            }.setNegativeButton("Voltar",null).show()
     }
     /** Everything needed to tell which route works on this phone; can be copied and sent. */
     private fun connectionReport(){
