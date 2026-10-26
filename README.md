@@ -24,6 +24,8 @@ Na TV, toque em **Volume** para aumentar ou diminuir sem fechar o painel. O volu
 
 Capturas do modo realista em Android, em paisagem e sem conexão com uma TV. O visual acompanha os ajustes de tamanho e posição em **Personalizar**. Veja os [testes e limites da validação visual](docs/realistic-controls.md).
 
+Em **Personalizar**, os analógicos esquerdo e direito, **Início (Home)** e **Voltar** são independentes: toque na peça para selecionar, arraste para mover e use **− / +** ou dois dedos para mudar seu tamanho. O editor identifica os analógicos como **Analógico E** e **Analógico D**. **Concluir** mantém os ajustes salvos para aquele console. As configurações antigas dos grupos compartilhados são convertidas preservando suas posições, tamanhos e espaçamento; **↺** restaura o layout do console atual.
+
 ## Formas de conexão
 
 | Rota | Para que serve | Requisito |

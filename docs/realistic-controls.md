@@ -26,6 +26,18 @@ São desenhos próprios. Não há imagens completas usadas como botões, modelos
 
 Os jogos mantêm o método de layout, as áreas de toque, IDs/máscaras, rastreamento de dedos e editor. A TV tem uma coluna de quatro teclas para acomodar Volume. Essa tecla é uma ação de interface com máscara zero; ela não vira botão de jogo. As bases decorativas seguem as posições e dimensões finais dos controles após personalização. A Activity continua em `sensorLandscape`, como antes.
 
+## Personalização independente
+
+Analógico esquerdo, analógico direito, Início (Home) e Voltar têm grupos próprios de posição e tamanho, por console. A seleção no editor mostra **Analógico E**, **Analógico D**, **Início (Home)** ou **Voltar**. Arrastar, os botões −/+ e o gesto de dois dedos afetam somente a peça selecionada. Start/Select/Pause permanecem no grupo de sistema; no controle da TV, Menu/Volume permanecem juntos e Início/Voltar ficam separados.
+
+Os ajustes anteriores dos grupos `sticks` e `system` são convertidos uma única vez ao construir o layout nativo. A conversão considera o centro do grupo antigo, a escala, o deslocamento e a correção conjunta nas bordas, para preservar tamanho e espaçamento. Cada novo grupo passa a salvar seus próprios deslocamentos normalizados. A migração registra um marcador por console/grupo, não sobrescreve ajustes individuais já existentes e mantém uma cópia dos valores antigos nas preferências. O reset ↺ limpa tanto os novos ajustes quanto os valores e marcadores antigos do console atual, impedindo que a configuração anterior reapareça.
+
+Os limites da tela são aplicados individualmente, de modo que um analógico ou uma tecla encostando na borda não arraste seu par. As máscaras e eixos usados para jogar não mudaram.
+
+| Analógico esquerdo selecionado | Início selecionado |
+|---|---|
+| ![Analógico esquerdo independente do direito](images/editor-left-stick.png) | ![Início independente de Voltar e Start/Select](images/editor-home.png) |
+
 ## Volume da TV
 
 O botão Volume abre `TvVolumeDialog`, com Diminuir/Aumentar e sem fechamento a cada ajuste. Os comandos vão diretamente para `GoogleTvLink`, independentemente da rota de jogo RetroTV/HID. São injeções atômicas de tecla SHORT (direção 3), com keycode 24 para aumentar e 25 para diminuir; não deixam uma tecla pressionada em caso de desconexão. Referências de protocolo: [schema do Android TV Remote v2](https://github.com/tronikos/androidtvremote2/blob/main/src/androidtvremote2/remotemessage.proto) e [KeyEvent do Android](https://developer.android.com/reference/android/view/KeyEvent).
@@ -39,8 +51,9 @@ O painel oferece conexão Google TV por Wi-Fi quando necessária e desativa os a
 ## Validação em 26/10/2026
 
 - Compilação do app e do APK de testes com JDK 21, SDK 35 e Gradle 8.9.
-- 34 testes JVM passaram, incluindo quatro testes novos de volume: bytes de protocolo, repetição das teclas físicas, desconexão durante um toque e limpeza ao sair.
-- 12 testes Android passaram em Android 11/API 30 x86 virtual: três existentes, sete em `RealisticControllerTest` e dois em `TvVolumeAndroidTest`.
+- 38 testes JVM passaram, incluindo volume e quatro testes de ajustes independentes/migração: peças isoladas, espaçamento legado dos analógicos, grupo antigo de Home/Voltar e correção conjunta nas bordas.
+- 16 testes Android passaram em Android 11/API 30 x86 virtual: três existentes, sete em `RealisticControllerTest`, dois em `TvVolumeAndroidTest` e quatro em `CustomizationAndroidTest`.
+- Os quatro controles independentes foram arrastados e redimensionados por MotionEvent sem alterar seus vizinhos, com recriação da View para verificar persistência. A migração dos ajustes antigos foi conferida uma única vez e o reset foi testado para impedir o reaparecimento dos valores antigos.
 - O painel de volume foi testado com um destino simulado: aumentar/diminuir repetidamente sem fechar, tecla física com painel aberto, atualização para desconectado e botão de conexão.
 - O gesto no botão Volume foi testado via MotionEvent: abre somente após toque completo, cancelar não abre e nenhum botão de jogo é enviado.
 - Modo clássico como padrão; preferência realista preservada ao recriar a View; mesmas áreas de toque nos dois modos; retorno pixel a pixel à aparência clássica ao desativar; entrada liberada ao alternar.
@@ -59,7 +72,7 @@ Comandos reproduzíveis (substitua o serial pelo seu emulador):
 ./gradlew :retropad:assembleDebug :retropad:assembleDebugAndroidTest :retropad:testDebugUnitTest :retropad:lintDebug
 adb -s emulator-5558 install -r retropad/build/outputs/apk/debug/retropad-debug.apk
 adb -s emulator-5558 install -r retropad/build/outputs/apk/androidTest/debug/retropad-debug-androidTest.apk
-adb -s emulator-5558 shell am instrument -w -e class org.retrotv.pad.PadAndroidTest,org.retrotv.pad.RealisticControllerTest,org.retrotv.pad.TvVolumeAndroidTest org.retrotv.pad.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5558 shell am instrument -w -e class org.retrotv.pad.PadAndroidTest,org.retrotv.pad.RealisticControllerTest,org.retrotv.pad.TvVolumeAndroidTest,org.retrotv.pad.CustomizationAndroidTest org.retrotv.pad.test/androidx.test.runner.AndroidJUnitRunner
 adb -s emulator-5558 shell am start -W -S -n org.retrotv.pad/.PadActivity --es previewConsole SNES
 ```
 

@@ -60,6 +60,34 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     private fun scaleKey(group:String)="scale.${console.name}.$group"
     private fun scaleOf(group:String)=PadLayout.clamp(prefs.getFloat(scaleKey(group),1f))
     private fun setScale(group:String,value:Float){prefs.edit().putFloat(scaleKey(group),PadLayout.clamp(value)).apply();dirty=true;invalidate()}
+    private fun migrationKey(group:String)="layout.${console.name}.independent.$group"
+    private fun migrateLegacySettings(controls:List<PadControl>){
+        for(legacy in PadLayout.legacyGroups){
+            val marker=migrationKey(legacy);if(prefs.getBoolean(marker,false))continue
+            val old=scaleKey(legacy);val oldScale=prefs.getFloat(old,1f)
+            val oldX=prefs.getFloat("$old.x",0f);val oldY=prefs.getFloat("$old.y",0f)
+            val settings=PadLayout.splitLegacyGroup(controls,legacy,oldScale,oldX*logicalW to oldY*logicalH,logicalW,logicalH,6f)
+            if(settings.isEmpty())continue
+            val edit=prefs.edit()
+            if(prefs.contains(old)||prefs.contains("$old.x")||prefs.contains("$old.y")){
+                edit.putFloat("legacy.$old",oldScale).putFloat("legacy.$old.x",oldX).putFloat("legacy.$old.y",oldY)
+            }
+            for((group,value) in settings){val key=scaleKey(group)
+                if(group==legacy||(!prefs.contains(key)&&!prefs.contains("$key.x")&&!prefs.contains("$key.y"))){
+                    edit.putFloat(key,value.scale).putFloat("$key.x",value.dx/logicalW).putFloat("$key.y",value.dy/logicalH)
+                }
+            }
+            edit.putBoolean(marker,true).apply()
+        }
+    }
+    private fun resetLayout(){
+        val edit=prefs.edit()
+        (PadLayout.groups+PadLayout.legacyGroups).distinct().forEach{group->val key=scaleKey(group)
+            edit.remove(key).remove("$key.x").remove("$key.y").remove("legacy.$key").remove("legacy.$key.x").remove("legacy.$key.y")
+        }
+        PadLayout.legacyGroups.forEach{edit.remove(migrationKey(it))}
+        edit.apply();liveOffset.clear();dirty=true;invalidate()
+    }
     fun startEditing(){release();sheet=false;editing=true;dirty=true;invalidate()}
     fun finishEditing(){endDrag();editing=false;dirty=true;invalidate()}
     init{isFocusable=true;contentDescription="Controle Bluetooth RetroTV em tela cheia. Direcional à esquerda, botões à direita e o seletor de console no topo."}
@@ -92,7 +120,7 @@ class ControllerView(context:Context,private val callback:Callback):View(context
             val w=rep.width*fit;val h=rep.height*fit;val x=(logicalW-w)/2;val y=(logicalH-h)/2
             importedRect=RectF(x,y,x+w,y+h)
             result+=rep.controls.map{it.copy(box=Box(x+it.box.x*fit,y+it.box.y*fit,it.box.w*fit,it.box.h*fit))}
-        }else{layout(result);val sized=PadLayout.fitInside(PadLayout.applyOffsets(PadLayout.applyScales(result,PadLayout.groups.associateWith(::scaleOf)),PadLayout.groups.associateWith(::offsetOf)),logicalW,logicalH,6f);result.clear();result+=sized}
+        }else{layout(result);migrateLegacySettings(result);val sized=PadLayout.fitInside(PadLayout.applyOffsets(PadLayout.applyScales(result,PadLayout.groups.associateWith(::scaleOf)),PadLayout.groups.associateWith(::offsetOf)),logicalW,logicalH,6f);result.clear();result+=sized}
         input.controls=result;lastState=PadState();dirty=false
         if(console==Console.TV&&!sheet&&!editing)result.firstOrNull{it.id=="volume"}?.let{control->
             ui+=control.box to {release();callback.volume()}
@@ -207,7 +235,7 @@ class ControllerView(context:Context,private val callback:Callback):View(context
         ui+=Box(t.left,t.top,t.width(),t.height()) to {}
         ui+=Box(x,t.top+4f,40f,40f) to {setScale(editGroup,scaleOf(editGroup)-.1f)};x+=44f+56f
         ui+=Box(x,t.top+4f,40f,40f) to {setScale(editGroup,scaleOf(editGroup)+.1f)};x+=48f
-        ui+=Box(x,t.top+4f,40f,40f) to {PadLayout.groups.forEach{prefs.edit().remove(scaleKey(it)).remove("${scaleKey(it)}.x").remove("${scaleKey(it)}.y").apply()};liveOffset.clear();dirty=true;invalidate()};x+=48f
+        ui+=Box(x,t.top+4f,40f,40f) to {resetLayout()};x+=48f
         ui+=Box(x,t.top+4f,t.right-x-6f,40f) to {finishEditing()}
     }
     private fun drawEditor(canvas:Canvas){
