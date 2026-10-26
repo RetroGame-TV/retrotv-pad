@@ -1,0 +1,3 @@
+<resources><style name="PadTheme" parent="android:style/Theme.Material.NoActionBar">
+<item name="android:fontFamily">sans</item><item name="android:colorAccent">#B89DF0</item><item name="android:windowLightStatusBar">false</item><item name="android:statusBarColor">#141416</item><item name="android:navigationBarColor">#141416</item><item name="android:windowActionModeOverlay">true</item><item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+</style></resources>

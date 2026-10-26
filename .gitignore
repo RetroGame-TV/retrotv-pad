@@ -1,0 +1,12 @@
+# Build output and Gradle/Kotlin caches
+build/
+.gradle/
+.kotlin/
+# IDE and machine-local files
+.idea/
+*.iml
+local.properties
+*.log
+# Signing keys never belong in the repository
+*.jks
+*.keystore

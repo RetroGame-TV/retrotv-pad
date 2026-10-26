@@ -1,0 +1,16 @@
+RetroTV Pad — controle Android para o RetroTV.
+Copyright (C) 2026 Davi Mattos e colaboradores do RetroTV.
+Licença: GNU GPL v3 ou posterior (GPL-3.0-or-later). O texto completo segue abaixo.
+
+Inspiração: Bluke (arnav-kr/Bluke), app que transforma o celular em teclado e controle Bluetooth. O RetroTV Pad é um projeto próprio: nenhum código do Bluke é usado. O controle Bluetooth HID foi escrito a partir da especificação USB HID 1.11 e das HID Usage Tables.
+
+Skins Delta: o importador lê o formato público de skins do Delta (info.json, representations, mappingSize, items, inputs, frame) com implementação própria em Kotlin. Nenhum código do Delta (rileytestut/Delta, GNU AGPL v3) nem arte de skin acompanha o app. Skins importadas pelo usuário têm direitos próprios.
+
+Layouts de controle desenhados em Canvas, originais. Não há ROM, BIOS, marca ou logotipo de fabricante no app.
+
+Referências:
+https://github.com/RetroGame-TV/retrotv-pad
+https://github.com/arnav-kr/Bluke
+https://github.com/rileytestut/Delta
+https://www.usb.org/hid
+Bluetooth HID depende de Android 9+ e de o fabricante do celular oferecer o perfil Bluetooth HID Device.
