@@ -4,6 +4,18 @@ Controle Android para o [RetroTV Lite](https://github.com/RetroGame-TV/retrotv-l
 
 Versão 0.3.5-dev, Android 9+, sem root. Não é um emulador de celular: os jogos rodam na TV.
 
+## Como é
+
+![Layout SNES](docs/images/layout-snes.png)
+
+| PS1 | Mega Drive |
+|---|---|
+| ![Layout PS1 com dois analógicos](docs/images/layout-ps1.png) | ![Layout Mega Drive com seis botões](docs/images/layout-mega.png) |
+| **NES** | **TV (navegar na galeria)** |
+| ![Layout NES](docs/images/layout-nes.png) | ![Controle remoto da TV com OK, Retornar, Início e Menu](docs/images/layout-tv.png) |
+
+Em todos os layouts, ⌂ volta ao menu principal do RetroTV, ↩ volta um passo e ❚❚ pausa. Capturas da versão 0.3.5 em paisagem (o chip "conectar" aparece porque o celular de teste não estava ligado a uma TV).
+
 ## Formas de conexão
 
 | Rota | Para que serve | Requisito |
