@@ -18,7 +18,9 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class RealisticControllerTest {
     private val ins get() = InstrumentationRegistry.getInstrumentation()
-    private val consoles = listOf(Console.NES, Console.SNES, Console.PS1, Console.MD)
+    private val consoles = Console.entries
+    private fun actionControl(controls:List<PadControl>)=controls.firstOrNull{PadLayout.groupOf(it)=="face"}
+        ?:controls.first{it.kind=="button"&&it.id!="ok"}
     private var savedAppearance:Boolean?=null
     private val prefs get()=ins.targetContext.getSharedPreferences("pad",android.content.Context.MODE_PRIVATE)
     @Before fun isolateAppearancePreference(){
@@ -66,7 +68,7 @@ class RealisticControllerTest {
             val after=Bitmap.createBitmap(view.width,view.height,Bitmap.Config.ARGB_8888)
             try{
                 view.draw(Canvas(before))
-                val finger=at(controls.first{PadLayout.groupOf(it)=="face"},42)
+                val finger=at(actionControl(controls),42)
                 send(view,MotionEvent.ACTION_DOWN,finger)
                 view.setRealisticAppearance(true)
                 assertEquals(PadState(),view.stateForTest())
@@ -96,7 +98,7 @@ class RealisticControllerTest {
         for (console in consoles) {
             val view = view(console); val controls = view.controlsForTest()
             val dpad = at(controls.first { it.kind == "dpad" }, 7, .85f, .15f)
-            val face = controls.first { PadLayout.groupOf(it) == "face" }
+            val face = actionControl(controls)
             val button = at(face, 42)
             send(view, MotionEvent.ACTION_DOWN, dpad)
             send(view, secondDown, dpad, button)
@@ -132,7 +134,7 @@ class RealisticControllerTest {
                 assertTrue("$console/${control.id} outside $width x $height", b.x >= 0 && b.y >= 0 &&
                     (b.x+b.w)*scale <= width+.1f && (b.y+b.h)*scale <= height+.1f)
             }
-            val face = at(view.controlsForTest().first { PadLayout.groupOf(it) == "face" }, 7)
+            val face = at(actionControl(view.controlsForTest()), 7)
             send(view, MotionEvent.ACTION_DOWN, face)
             view.startEditing(); assertEquals(PadState(), view.stateForTest())
             view.finishEditing(); view.controlsForTest()
@@ -149,7 +151,7 @@ class RealisticControllerTest {
             val restored = Bitmap.createBitmap(view.width,view.height,Bitmap.Config.ARGB_8888)
             try {
                 view.draw(Canvas(baseline))
-                val face = at(view.controlsForTest().first { PadLayout.groupOf(it) == "face" }, 7)
+                val face = at(actionControl(view.controlsForTest()), 7)
                 send(view,MotionEvent.ACTION_DOWN,face); view.draw(Canvas(active))
                 assertFalse("Pressed appearance missing for $console",baseline.sameAs(active))
                 if(InstrumentationRegistry.getArguments().getString("exportFrames")=="1"){
@@ -161,6 +163,22 @@ class RealisticControllerTest {
                 send(view,MotionEvent.ACTION_CANCEL,face); view.draw(Canvas(restored))
                 assertTrue("Paint state leaked after release for $console",baseline.sameAs(restored))
             } finally { baseline.recycle(); active.recycle(); restored.recycle() }
+        }
+    }
+    @Test fun directionalPressAndReleaseAreVisibleInEveryModel() = ins.runOnMainSync {
+        for(console in consoles){
+            val view=view(console)
+            val baseline=Bitmap.createBitmap(view.width,view.height,Bitmap.Config.ARGB_8888)
+            val frame=Bitmap.createBitmap(view.width,view.height,Bitmap.Config.ARGB_8888)
+            try{
+                view.draw(Canvas(baseline))
+                val finger=at(view.controlsForTest().first{it.kind=="dpad"},7,.85f,.15f)
+                send(view,MotionEvent.ACTION_DOWN,finger)
+                assertEquals(9,view.stateForTest().dpad)
+                view.draw(Canvas(frame));assertFalse("Directional feedback missing for $console",baseline.sameAs(frame))
+                send(view,MotionEvent.ACTION_UP,finger)
+                view.draw(Canvas(frame));assertTrue("Directional release changed neutral frame for $console",baseline.sameAs(frame))
+            }finally{baseline.recycle();frame.recycle()}
         }
     }
 }

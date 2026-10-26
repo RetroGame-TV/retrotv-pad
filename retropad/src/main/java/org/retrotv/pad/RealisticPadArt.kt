@@ -4,7 +4,7 @@ import android.graphics.*
 import kotlin.math.*
 import java.util.Random
 
-/** Original, resolution-independent materials for the four reference pads.
+/** Original, resolution-independent materials for all built-in pads.
  * Only draws: all geometry comes from ControllerView's existing touch controls. */
 internal class RealisticPadArt {
     private val art = PadArt()
@@ -61,10 +61,16 @@ internal class RealisticPadArt {
         paint.alpha = 255
     }
     fun background(canvas: Canvas, w: Float, h: Float, console: Console, controls: List<PadControl>) {
-        val dark = console == Console.MD
+        val dark = console == Console.MD || console == Console.ARCADE || console == Console.TV
+        val colors = when(console){
+            Console.GB -> intArrayOf(c("#E4E1D6"),c("#CBC7B7"),c("#B4B0A4"))
+            Console.ARCADE -> intArrayOf(c("#302B39"),c("#1C1924"),c("#100E18"))
+            Console.TV -> intArrayOf(c("#242A34"),c("#171D26"),c("#0D121A"))
+            else -> if(dark)intArrayOf(c("#24272E"), c("#14171C"), c("#0D1015"))
+                else intArrayOf(c("#E1E1E9"), c("#C9CAD5"), c("#B8BBC8"))
+        }
         paint.shader = LinearGradient(0f, 0f, w * .6f, h,
-            if (dark) intArrayOf(c("#24272E"), c("#14171C"), c("#0D1015"))
-            else intArrayOf(c("#E1E1E9"), c("#C9CAD5"), c("#B8BBC8")),
+            colors,
             floatArrayOf(0f, .55f, 1f), Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, h, paint); paint.shader = null
         texture(canvas, w, h)
@@ -137,7 +143,13 @@ internal class RealisticPadArt {
                 val t = center("triangle"); val o = center("circle")
                 if (t != null && o != null) socket(canvas, t.x, o.y, o.x-t.x+radius("circle")+12f, false)
             }
-            else -> Unit
+            Console.GB -> row("b","a")
+            Console.ARCADE -> {row("y","l");row("b","r")}
+            Console.TV -> {
+                listOf("back" to "Retornar","home" to "Início","options" to "Menu").forEach{(id,label)->
+                    center(id)?.let{p->art.label(canvas,label,p.x+radius(id)+16f,p.y+5f,14f,c("#CCD5E4"),center=false)}
+                }
+            }
         }
     }
     /** Sunken mounting disc with a shadowed upper lip and illuminated lower lip. */
@@ -150,7 +162,8 @@ internal class RealisticPadArt {
     }
     private fun faceRadius(control: PadControl, console: Console) = control.box.w/2 - when(console) {
         Console.SNES, Console.PS1 -> 8f
-        Console.NES -> 6f
+        Console.NES, Console.GB -> 6f
+        Console.TV -> 10f
         else -> 4f
     }
     private fun bevelCircle(canvas: Canvas, x: Float, y: Float, r: Float) {
@@ -242,9 +255,52 @@ internal class RealisticPadArt {
             paint.color=a(Color.WHITE,65);canvas.drawCircle(px,py+.7f,1f,paint)
             paint.color=c("#15181F");canvas.drawCircle(px,py,1.1f,paint)}
     }
+    /** Arcade ball-top with a metal shaft and a fixed mounting plate. */
+    private fun lever(canvas:Canvas,x:Float,y:Float,r:Float,bits:Int){
+        socket(canvas,x,y,r,true)
+        for(i in 0..3){
+            val t=PI.toFloat()*(.25f+i*.5f);val sx=x+cos(t)*r*.84f;val sy=y+sin(t)*r*.84f
+            round(canvas,RectF(sx-3,sy-3,sx+3,sy+3),3f,c("#A1A6AF"),c("#303540"))
+            stroke.color=c("#14171E");stroke.strokeWidth=1f;canvas.drawLine(sx-1.5f,sy+1.5f,sx+1.5f,sy-1.5f,stroke)
+        }
+        socket(canvas,x,y,r*.45f,true)
+        val dx=((if(bits and 8!=0)1 else 0)-(if(bits and 4!=0)1 else 0))*r*.32f
+        val dy=((if(bits and 2!=0)1 else 0)-(if(bits and 1!=0)1 else 0))*r*.32f
+        val bx=x+dx;val by=y+dy-r*.12f;val ball=r*.44f
+        stroke.strokeWidth=r*.16f
+        stroke.shader=LinearGradient(x-r*.1f,0f,x+r*.1f,0f,c("#E2E6EF"),c("#606977"),Shader.TileMode.CLAMP)
+        canvas.drawLine(x,y,bx,by,stroke);stroke.shader=null
+        shadow(canvas,RectF(bx-ball,by-ball,bx+ball,by+ball),ball,5f)
+        paint.shader=RadialGradient(bx-ball*.4f,by-ball*.5f,ball*1.65f,
+            intArrayOf(c("#F7A0AC"),c("#CE2448"),c("#500C23")),floatArrayOf(0f,.4f,1f),Shader.TileMode.CLAMP)
+        canvas.drawCircle(bx,by,ball,paint);paint.shader=null
+        paint.shader=vertical(by-ball,by,a(Color.WHITE,160),a(Color.WHITE,0))
+        canvas.drawOval(RectF(bx-ball*.65f,by-ball*.83f,bx+ball*.35f,by-ball*.03f),paint);paint.shader=null
+    }
+    /** A convex remote ring; pressed sectors sink around a separate, stationary OK key. */
+    private fun remoteRing(canvas:Canvas,x:Float,y:Float,r:Float,bits:Int){
+        socket(canvas,x,y,r+6f,true);bevelCircle(canvas,x,y,r)
+        paint.shader=RadialGradient(x-r*.3f,y-r*.4f,r*1.6f,c("#414956"),c("#111721"),Shader.TileMode.CLAMP)
+        canvas.drawCircle(x,y,r*.96f,paint);paint.shader=null
+        for((i,bit) in intArrayOf(1,8,2,4).withIndex()){
+            canvas.save();canvas.rotate(i*90f,x,y)
+            val active=bits and bit!=0
+            if(active){
+                paint.color=a(Color.BLACK,100)
+                canvas.drawArc(RectF(x-r*.95f,y-r*.95f,x+r*.95f,y+r*.95f),235f,70f,true,paint)
+            }
+            val ay=y-r*.7f+if(active)2.2f else 0f;val s=r*.09f
+            val arrow=Path().apply{moveTo(x,ay-s*.6f);lineTo(x+s*.62f,ay+s*.4f);lineTo(x-s*.62f,ay+s*.4f);close()}
+            paint.color=if(active)c("#FFFFFF") else c("#CCD5E3");canvas.drawPath(arrow,paint)
+            canvas.restore()
+        }
+    }
     fun control(canvas:Canvas,control:PadControl,state:PadState,console:Console,pressed:Boolean) {
-        val b=control.box;val x=b.x+b.w/2;val y=b.y+b.h/2;val dark=console==Console.MD
+        val b=control.box;val x=b.x+b.w/2;val y=b.y+b.h/2
+        val dark=console==Console.MD||console==Console.ARCADE||console==Console.TV
         when {
+            control.kind=="dpad"&&console==Console.ARCADE -> lever(canvas,x,y,b.w*.42f,state.dpad)
+            control.kind=="dpad"&&console==Console.TV -> remoteRing(canvas,x,y,b.w/2-6f,state.dpad)
             control.kind=="dpad" -> dpad(canvas,x,y,b.w*.74f,state.dpad,console)
             control.kind=="leftStick" -> stick(canvas,x,y,b.w/2-6f,state.lx,state.ly)
             control.kind=="rightStick" -> stick(canvas,x,y,b.w/2-6f,state.rx,state.ry)
@@ -256,14 +312,14 @@ internal class RealisticPadArt {
             control.id=="select" || control.id=="start" -> {
                 val k=b.w/84f;val w=if(console==Console.NES)46f*k else 58f*k
                 val h=15f*k;val cy=y-if(console==Console.NES)0f else 6f
-                canvas.save();canvas.rotate(when(console){Console.SNES -> -26f;Console.MD -> -18f;else -> 0f},x,cy)
+                canvas.save();canvas.rotate(when(console){Console.SNES,Console.GB -> -26f;Console.MD -> -18f;else -> 0f},x,cy)
                 keycap(canvas,RectF(x-w/2,cy-h/2,x+w/2,cy+h/2),pressed,
                     if(console==Console.SNES)c("#AAABC6") else if(dark)c("#333943") else c("#292D34"),h/2)
                 canvas.restore()
                 if(console!=Console.NES)art.label(canvas,control.label,x,y+20f*k,10f*k,if(dark)c("#BDC4D0") else c("#545B6E"),italic=console==Console.SNES,letter=.09f)
             }
             control.id in setOf("home","pause","back") -> {
-                val r=min(b.w,b.h)/2-9f
+                val r=min(b.w,b.h)/2-if(console==Console.TV)10f else 9f
                 button(canvas,x,y,r,if(dark)c("#343A44") else c("#BDC1CF"),pressed)
                 val cy=y+pressOffset(r,pressed);val s=r*.42f
                 paint.color=if(dark)c("#D5DFEF") else c("#515968")
@@ -275,12 +331,13 @@ internal class RealisticPadArt {
             }
             else -> {
                 val r=faceRadius(control,console)
-                val color=when(console){Console.PS1,Console.MD -> c("#20252E");else -> control.color}
+                val color=when(console){Console.PS1,Console.MD,Console.TV -> c("#20252E");else -> control.color}
                 button(canvas,x,y,r,color,pressed)
                 val cy=y+pressOffset(r,pressed)
                 if(console==Console.PS1)art.symbol(canvas,control.id,x,cy,r*.43f,when(control.id){"triangle"->c("#6DE1C8");"circle"->c("#F37D97");"cross"->c("#7FAAF5");else->c("#E998DA")})
                 else if(console==Console.NES)art.label(canvas,control.label,x+r*.7f,y+r+27f,15f,c("#D12230"))
-                else art.label(canvas,control.label,x,cy+r*.34f,r*.95f,if(dark)c("#C0CAD9") else a(Color.WHITE,220),emboss=a(Color.BLACK,70),letter=.02f)
+                else if(console==Console.GB)art.label(canvas,control.label,x,y+r+22f,15f,c("#3D3D70"),italic=true)
+                else art.label(canvas,control.label,x,cy+r*(if(console==Console.ARCADE).2f else .34f),r*(if(console==Console.ARCADE).6f else .95f),if(dark&&console!=Console.ARCADE)c("#C0CAD9") else a(Color.WHITE,220),emboss=a(Color.BLACK,70),letter=.02f)
             }
         }
     }
@@ -293,8 +350,5 @@ internal class RealisticPadArt {
         paint.color=c("#6D5221");canvas.drawCircle(x,y,5f,paint)
         paint.shader=RadialGradient(x-1.4f,y-1.8f,6f,intArrayOf(c("#FFFFE1"),color,art.dark(color,.35f)),floatArrayOf(0f,.4f,1f),Shader.TileMode.CLAMP)
         canvas.drawCircle(x,y,4.3f,paint);paint.shader=null
-    }
-    companion object {
-        fun supports(console:Console)=console in setOf(Console.NES,Console.SNES,Console.PS1,Console.MD)
     }
 }

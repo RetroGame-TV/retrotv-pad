@@ -248,7 +248,7 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     }
     private fun drawChip(canvas:Canvas){
         val b=chip;val dark=look.dark;val live=connectedName.isNotEmpty()
-        if(realisticAppearance&&imported==null&&RealisticPadArt.supports(console))realisticArt.chip(canvas,b,dark,live)
+        if(realisticAppearance&&imported==null)realisticArt.chip(canvas,b,dark,live)
         else{
             ink.shader=null;ink.style=Paint.Style.FILL;ink.color=if(dark)art.alpha(Color.WHITE,22) else art.alpha(Color.BLACK,26);canvas.drawRoundRect(b.x,b.y,b.x+b.w,b.y+b.h,b.h/2,b.h/2,ink)
             ink.color=if(live)c("#5FCB7A") else c("#E0A25A");canvas.drawCircle(b.x+20f,b.y+b.h/2,4.5f,ink)
@@ -278,7 +278,7 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     private fun centerOf(id:String)=input.controls.firstOrNull{it.id==id}?.box?.let{PointF(it.x+it.w/2,it.y+it.h/2)}
     private fun radiusOf(id:String)=input.controls.firstOrNull{it.id==id}?.let{it.box.w/2-(if(console==Console.SNES||console==Console.PS1)8f else if(console==Console.NES||console==Console.GB)6f else if(console==Console.TV)10f else 4f)}?:0f
     private fun drawConsole(canvas:Canvas,state:PadState){
-        if(realisticAppearance&&RealisticPadArt.supports(console)){
+        if(realisticAppearance){
             realisticArt.background(canvas,logicalW,logicalH,console,input.controls)
             input.controls.sortedBy{if(it.kind=="dpad")0 else 1}.forEach{control->
                 realisticArt.control(canvas,control,state,console,pressed(control,state))
