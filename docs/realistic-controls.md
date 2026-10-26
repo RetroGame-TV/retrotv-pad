@@ -1,8 +1,8 @@
 # Controles com acabamento tridimensional
 
-Os quatro desenhos fornecidos como referência foram inspecionados visualmente. A implementação mantém a composição adaptável dos controles nativos e reproduz seus materiais em `RealisticPadArt`, usando paths, gradientes, contornos, sombras e símbolos vetoriais do Android Canvas. Game Boy, Arcade e TV também recebem acabamento realista, derivado da mesma linguagem de materiais, pois não havia renders de referência para esses três modelos.
+Os quatro desenhos fornecidos como referência foram inspecionados visualmente. A implementação mantém a composição adaptável dos controles nativos e reproduz seus materiais em `RealisticPadArt`, usando paths, gradientes, contornos, sombras e símbolos vetoriais do Android Canvas. Game Boy e Arcade também recebem acabamento realista, derivado da mesma linguagem de materiais, pois não havia renders de referência para esses dois modelos. O controle da TV usa `FlatTvArt`: preenchimentos sólidos e traços simples, sem materiais, sombras ou efeito 3D, em ambas as aparências.
 
-O visual é um **modo adicional e opcional**, disponível nos sete modelos nativos. O padrão continua **Clássica**, inclusive para quem atualiza o app. Ative em **chip do console > Mais opções > Aparência dos controles > Realista**. A preferência fica salva; voltar a Clássica restaura o desenho anterior. O renderer realista e sua textura são inicializados apenas quando necessários. Skins importadas não mudam de aparência.
+O visual é um **modo adicional e opcional**, disponível nos seis modelos de jogo. O padrão continua **Clássica**, inclusive para quem atualiza o app. Ative em **chip do console > Mais opções > Aparência dos controles > Realista**. A preferência fica salva; voltar a Clássica restaura o desenho anterior dos jogos. O renderer realista e sua textura são inicializados apenas quando necessários e nunca são usados no controle da TV. Skins importadas não mudam de aparência.
 
 ![Seletor de aparência com o clássico como padrão](images/appearance-picker.png)
 
@@ -14,23 +14,30 @@ O visual é um **modo adicional e opcional**, disponível nos sete modelos nativ
 | Mega Drive | Plástico preto, aros claros no direcional e nas duas fileiras inclinadas, seis botões escuros e letras cinza. |
 | Game Boy | Carcaça cinza quente, botões vinho em base inclinada, impressão azulada e teclas de borracha rebaixadas. |
 | Arcade | Painel escuro, seis botões coloridos com aros e profundidade, alavanca com esfera brilhante, haste metálica e parafusos na base. |
-| TV | Carcaça grafite, anel direcional convexo com setores rebaixados ao apertar, OK independente e teclas Retornar/Início/Menu. |
+| TV | Desenho plano, anel direcional com destaque da direção pressionada, OK independente e teclas Retornar/Início/Menu/Volume. |
 
 São desenhos próprios. Não há imagens completas usadas como botões, modelos 3D, bibliotecas novas, logotipos ou assets extraídos das referências. A granulação usa um tile procedural de 64×64 pixels (16 KiB), criado uma vez por renderer e repetido por shader em uma única operação. As partes interativas continuam vetoriais. Não há animação contínua nem geração de ruído a cada evento.
 
 ## Integração e interação
 
-`ControllerView` escolhe o novo renderer somente quando o usuário ativa Realista e quando não está desenhando uma skin Delta importada. O renderer recebe os mesmos `PadControl` e `PadState` já usados pelo input. A aparência de pressão é imediata: o encaixe permanece fixo, a face desce de 2,5 a 4,5 dp, perde altura, escurece e deixa de projetar a sombra elevada; a borda interna superior aparece acima dela. Os ombros e as teclas Start/Select também afundam. O direcional inclina e os analógicos acompanham os eixos. Ao soltar ou cancelar o gesto, o desenho volta ao estado neutro. No Arcade a esfera inclina com a direção; na TV o setor do anel direcional escurece e sua seta desce.
+`ControllerView` escolhe o novo renderer nos jogos somente quando o usuário ativa Realista e quando não está desenhando uma skin Delta importada. O renderer recebe os mesmos `PadControl` e `PadState` já usados pelo input. A aparência de pressão é imediata: o encaixe permanece fixo, a face desce de 2,5 a 4,5 dp, perde altura, escurece e deixa de projetar a sombra elevada; a borda interna superior aparece acima dela. Os ombros e as teclas Start/Select também afundam. O direcional inclina e os analógicos acompanham os eixos. Ao soltar ou cancelar o gesto, o desenho volta ao estado neutro. No Arcade a esfera inclina com a direção. Na TV, apenas a cor indica a direção ou tecla pressionada, sem simular profundidade.
 
-![Comparação entre botão solto e pressionado nos sete modelos, em frames do renderer da View](images/realistic-pressure.png)
+![Comparação entre botão solto e pressionado nos seis modelos de jogo, em frames do renderer da View](images/realistic-pressure.png)
 
-Não foram alterados o método de layout, as áreas ampliadas de toque, a seleção do controle mais próximo, os IDs/máscaras, o rastreamento de dedos, o editor ou os protocolos de conexão. As bases decorativas seguem as posições e dimensões finais dos controles após personalização. A Activity continua em `sensorLandscape`, como antes; o teste com janela em formato retrato cobre os limites da View, sem adicionar um novo modo retrato ao app.
+Os jogos mantêm o método de layout, as áreas de toque, IDs/máscaras, rastreamento de dedos e editor. A TV tem uma coluna de quatro teclas para acomodar Volume. Essa tecla é uma ação de interface com máscara zero; ela não vira botão de jogo. As bases decorativas seguem as posições e dimensões finais dos controles após personalização. A Activity continua em `sensorLandscape`, como antes.
+
+## Volume da TV
+
+O botão Volume abre `TvVolumeDialog`, com Diminuir/Aumentar e sem fechamento a cada ajuste. Os comandos vão diretamente para `GoogleTvLink`, independentemente da rota de jogo RetroTV/HID. São injeções atômicas de tecla SHORT (direção 3), com keycode 24 para aumentar e 25 para diminuir; não deixam uma tecla pressionada em caso de desconexão. Referências de protocolo: [schema do Android TV Remote v2](https://github.com/tronikos/androidtvremote2/blob/main/src/androidtvremote2/remotemessage.proto) e [KeyEvent do Android](https://developer.android.com/reference/android/view/KeyEvent).
+
+O painel oferece conexão Google TV por Wi-Fi quando necessária e desativa os ajustes se essa conexão cair. A configuração usa descoberta e código de pareamento na TV; não exige permissão Bluetooth nem interrompe a conexão de jogo. Os botões físicos de volume do celular funcionam enquanto o app está em primeiro plano e conectado ao remoto, inclusive com o painel aberto. Sem conexão, o Android mantém o controle normal do volume local. Ao sair do app, a posse das teclas é limpa. Nenhum número de volume é inventado, e não há chamadas ao AudioManager do celular.
 
 ## Validação em 26/10/2026
 
 - Compilação do app e do APK de testes com JDK 21, SDK 35 e Gradle 8.9.
-- 30 testes JVM passaram, abrangendo input, máscaras/reports HID, transformação de layout, transporte e fila de reports.
-- 10 testes Android passaram em Android 11/API 30 x86 virtual: 3 existentes e 7 novos em `RealisticControllerTest`, abrangendo os sete modelos.
+- 34 testes JVM passaram, incluindo quatro testes novos de volume: bytes de protocolo, repetição das teclas físicas, desconexão durante um toque e limpeza ao sair.
+- O APK de instrumentação com 12 testes Android foi compilado. A execução desta versão foi bloqueada porque a revisão automática não pôde ser concluída após atingir o limite de uso; portanto, os novos testes de painel, gesto de Volume e TV plana ainda não foram executados.
+- A versão anterior, antes da alteração da TV/volume, teve dez testes Android aprovados em Android 11/API 30 x86 virtual. Os itens abaixo descrevem a cobertura dos testes, não uma nova execução da versão atual.
 - Modo clássico como padrão; preferência realista preservada ao recriar a View; mesmas áreas de toque nos dois modos; retorno pixel a pixel à aparência clássica ao desativar; entrada liberada ao alternar.
 - Todos os botões dos sete modelos foram pressionados e soltos via `MotionEvent`, conferindo suas máscaras.
 - Direcional diagonal com um segundo dedo em botão, soltura independente e `ACTION_CANCEL` nos sete modelos.
@@ -38,8 +45,8 @@ Não foram alterados o método de layout, as áreas ampliadas de toque, a seleç
 - Limites das áreas de toque em Views de 2400×1080, 1920×1080, 1440×1080 e 1080×1920; liberação de entrada ao redimensionar ou abrir o editor.
 - Renderização pressionada diferente da neutra e retorno pixel a pixel ao desenho original após cancelar, nos sete modelos.
 - Resposta visual de pressão e soltura do direcional em todos os modelos, incluindo a alavanca Arcade e o anel da TV.
-- Lint: zero erros e nove avisos em arquivos existentes; nenhum check foi desativado.
-- Capturas do app no renderer Android em 1920×886, densidade 420 dpi, nas imagens deste README. A captura de abertura cinza foi descartada; as imagens mostram frames completos.
+- Lint: zero erros e 12 avisos; nove já existiam e três são sugestões de recursos de tradução do novo painel. Nenhum check foi desativado.
+- Capturas dos seis modelos de jogo no renderer Android em 1920×886/420 dpi. A captura antiga da TV 3D foi removida; a TV plana ainda não foi capturada no renderer.
 
 Comandos reproduzíveis (substitua o serial pelo seu emulador):
 
@@ -47,7 +54,7 @@ Comandos reproduzíveis (substitua o serial pelo seu emulador):
 ./gradlew :retropad:assembleDebug :retropad:assembleDebugAndroidTest :retropad:testDebugUnitTest :retropad:lintDebug
 adb -s emulator-5558 install -r retropad/build/outputs/apk/debug/retropad-debug.apk
 adb -s emulator-5558 install -r retropad/build/outputs/apk/androidTest/debug/retropad-debug-androidTest.apk
-adb -s emulator-5558 shell am instrument -w -e class org.retrotv.pad.PadAndroidTest,org.retrotv.pad.RealisticControllerTest org.retrotv.pad.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5558 shell am instrument -w -e class org.retrotv.pad.PadAndroidTest,org.retrotv.pad.RealisticControllerTest,org.retrotv.pad.TvVolumeAndroidTest org.retrotv.pad.test/androidx.test.runner.AndroidJUnitRunner
 adb -s emulator-5558 shell am start -W -S -n org.retrotv.pad/.PadActivity --es previewConsole SNES
 ```
 

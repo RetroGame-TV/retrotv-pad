@@ -12,7 +12,7 @@ import kotlin.math.*
  * chip that opens the layout/connection sheet. No screenshots or proprietary console logos are bundled.
  */
 class ControllerView(context:Context,private val callback:Callback):View(context){
-    interface Callback{fun send(state:PadState);fun connect();fun select(console:Console);fun auto();fun options()}
+    interface Callback{fun send(state:PadState);fun connect();fun select(console:Console);fun auto();fun options();fun volume(){}}
     var console=Console.SNES
     var automatic=true
     var connectedName=""
@@ -24,6 +24,7 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     private val ink=Paint(Paint.ANTI_ALIAS_FLAG)
     private val art=PadArt()
     private val realisticArt by lazy{RealisticPadArt()}
+    private val flatTvArt by lazy{FlatTvArt()}
     private val input=PadInput()
     private var dirty=true
     private var scale=1f
@@ -93,6 +94,9 @@ class ControllerView(context:Context,private val callback:Callback):View(context
             result+=rep.controls.map{it.copy(box=Box(x+it.box.x*fit,y+it.box.y*fit,it.box.w*fit,it.box.h*fit))}
         }else{layout(result);val sized=PadLayout.fitInside(PadLayout.applyOffsets(PadLayout.applyScales(result,PadLayout.groups.associateWith(::scaleOf)),PadLayout.groups.associateWith(::offsetOf)),logicalW,logicalH,6f);result.clear();result+=sized}
         input.controls=result;lastState=PadState();dirty=false
+        if(console==Console.TV&&!sheet&&!editing)result.firstOrNull{it.id=="volume"}?.let{control->
+            ui+=control.box to {release();callback.volume()}
+        }
     }
     /** Thumb zones: d-pad and face buttons sit low and inward, shoulders hug the top corners, system keys share the bottom centre. */
     private fun layout(result:MutableList<PadControl>){
@@ -107,12 +111,15 @@ class ControllerView(context:Context,private val callback:Callback):View(context
             result+=PadControl(id,Box(x-w/2,y-h/2,w,h),mask=console.mask(id),label=label,color=c(tint),round=false)
         }
         if(console==Console.TV){
-            // Remote: a big arrow ring with OK in the middle (listed first so it wins the centre), Back/Home/Menu on the right.
+            // Flat remote: OK wins the centre; navigation and the volume panel share a four-key column.
             val ring=minOf(H*.40f,170f);val rx=W*.36f;val ry=H*.56f;val ok=ring*.36f
             result+=PadControl("ok",Box(rx-ok,ry-ok,ok*2,ok*2),mask=console.mask("ok"),label="OK",color=c("#4A4752"))
             result+=PadControl("dpad",Box(rx-ring,ry-ring,ring*2,ring*2),"dpad")
-            val kx=W*.70f;val gap=minOf(H*.26f,100f)
-            button("back","↩",kx,ry-gap,34f,"#3A3842",10f);button("home","",kx,ry,34f,"#3A3842",10f);button("options","≡",kx,ry+gap,34f,"#3A3842",10f)
+            val kx=W*.70f;val gap=minOf(H*.23f,80f)
+            for((i,id) in listOf("back","home","options","volume").withIndex()){
+                val box=Box(kx-36f,H*.55f+(i-1.5f)*gap-26f,72f,52f)
+                result+=PadControl(id,box,kind=if(id=="volume")"action" else "button",mask=console.mask(id),round=false)
+            }
             return
         }
         result+=PadControl("dpad",Box(dx-pad*.62f,cy-pad*.62f,pad*1.24f,pad*1.24f),"dpad")
@@ -248,7 +255,7 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     }
     private fun drawChip(canvas:Canvas){
         val b=chip;val dark=look.dark;val live=connectedName.isNotEmpty()
-        if(realisticAppearance&&imported==null)realisticArt.chip(canvas,b,dark,live)
+        if(realisticAppearance&&console!=Console.TV&&imported==null)realisticArt.chip(canvas,b,dark,live)
         else{
             ink.shader=null;ink.style=Paint.Style.FILL;ink.color=if(dark)art.alpha(Color.WHITE,22) else art.alpha(Color.BLACK,26);canvas.drawRoundRect(b.x,b.y,b.x+b.w,b.y+b.h,b.h/2,b.h/2,ink)
             ink.color=if(live)c("#5FCB7A") else c("#E0A25A");canvas.drawCircle(b.x+20f,b.y+b.h/2,4.5f,ink)
@@ -278,6 +285,11 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     private fun centerOf(id:String)=input.controls.firstOrNull{it.id==id}?.box?.let{PointF(it.x+it.w/2,it.y+it.h/2)}
     private fun radiusOf(id:String)=input.controls.firstOrNull{it.id==id}?.let{it.box.w/2-(if(console==Console.SNES||console==Console.PS1)8f else if(console==Console.NES||console==Console.GB)6f else if(console==Console.TV)10f else 4f)}?:0f
     private fun drawConsole(canvas:Canvas,state:PadState){
+        if(console==Console.TV){
+            flatTvArt.background(canvas)
+            input.controls.sortedBy{if(it.kind=="dpad")0 else 1}.forEach{control->flatTvArt.control(canvas,control,state,pressed(control,state))}
+            return
+        }
         if(realisticAppearance){
             realisticArt.background(canvas,logicalW,logicalH,console,input.controls)
             input.controls.sortedBy{if(it.kind=="dpad")0 else 1}.forEach{control->
@@ -368,7 +380,7 @@ class ControllerView(context:Context,private val callback:Callback):View(context
         val x=event.getX(index)/scale;val y=event.getY(index)/scale
         when(action){
             MotionEvent.ACTION_DOWN,MotionEvent.ACTION_POINTER_DOWN->{
-                val item=if(sheet&&event.pointerCount==1)ui.lastOrNull{it.first.contains(x,y)} else if(!sheet)ui.lastOrNull{it.first.contains(x,y)}?.takeIf{event.pointerCount==1&&input.controls.none{c->c.box.contains(x,y)}} else null
+                val item=if(sheet&&event.pointerCount==1)ui.lastOrNull{it.first.contains(x,y)} else if(!sheet)ui.lastOrNull{it.first.contains(x,y)}?.takeIf{event.pointerCount==1&&input.controls.none{c->c.kind!="action"&&c.box.contains(x,y)}} else null
                 if(item!=null)uiDown=id to item else if(!sheet){input.down(id,x,y);performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)}
             }
             MotionEvent.ACTION_MOVE->if(!sheet)for(i in 0 until event.pointerCount)input.move(event.getPointerId(i),event.getX(i)/scale,event.getY(i)/scale)

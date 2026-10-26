@@ -61,6 +61,8 @@ class Pb{
 
 /** Pad state → Android TV remote keys (KeyEvent codes). Navigation only: d-pad, OK, Back, Menu and Home. */
 object GoogleTvKeys{
+    /** Atomic SHORT key injection: one step, with no held key to release on disconnect. */
+    fun volumeMessage(increase:Boolean)=Pb().msg(10,Pb().int(1,if(increase)24 else 25).int(2,3)).toBytes()
     private val dpad=listOf(1 to 19,2 to 20,4 to 21,8 to 22)
     private val buttons=listOf((1 shl 0) to 23,(1 shl 1) to 4,(1 shl 9) to 82,(1 shl 16) to 3,(1 shl 17) to 4)
     /** (key code, direction) with direction 1 = press (START_LONG) and 2 = release (END_LONG). */
@@ -237,6 +239,18 @@ class GoogleTvLink(override val label:String,private val host:String,private val
         val changes=GoogleTvKeys.events(previous,state);previous=state
         val s=socket;if(!live||s==null||changes.isEmpty())return
         writer.execute{runCatching{val out=s.outputStream;changes.forEach{(key,direction)->synchronized(out){Pb.writeFrame(out,Pb().msg(10,Pb().int(1,key.toLong()).int(2,direction.toLong())).toBytes())}}}}
+    }
+    /** Volume uses the remote service directly, independently of the active game/HID route. */
+    fun adjustVolume(increase:Boolean):Boolean{
+        val s=socket;if(!live||s==null||writer.isShutdown)return false
+        val token=generation.get();val message=GoogleTvKeys.volumeMessage(increase)
+        return try{
+            writer.execute{
+                if(live&&socket===s&&generation.get()==token)runCatching{
+                    val out=s.outputStream;synchronized(out){Pb.writeFrame(out,message)}
+                }
+            };true
+        }catch(_:java.util.concurrent.RejectedExecutionException){false}
     }
     override fun close(){generation.incrementAndGet();cancelled=true;live=false;runCatching{socket?.close()};socket=null;writer.shutdown()}
 }

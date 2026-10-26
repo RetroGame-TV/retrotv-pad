@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.text.InputFilter
 import android.text.InputType
 import android.view.WindowManager
+import android.view.KeyEvent
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ScrollView
@@ -40,6 +41,8 @@ class PadActivity:Activity(),HidSession.Listener,RetroTvLink.Events,GoogleTvLink
     private var chosen:BluetoothDevice?=null
     private var retro:RetroTvLink?=null
     private var google:GoogleTvLink?=null
+    private var volumeDialog:TvVolumeDialog?=null
+    private val volumeKeys=TvVolumeKeys{increase->google?.adjustVolume(increase)?:false}
     private var wifiLock:WifiManager.WifiLock?=null
     private val imports=Executors.newSingleThreadExecutor()
     private val hidAllowed get()=prefs.getString("hid",null)!="no"
@@ -53,6 +56,7 @@ class PadActivity:Activity(),HidSession.Listener,RetroTvLink.Events,GoogleTvLink
             override fun select(console:Console){controllerView.automatic=false;prefs.edit().putBoolean("auto",false).apply();this@PadActivity.select(console,true)}
             override fun auto(){controllerView.release();controllerView.automatic=!controllerView.automatic;prefs.edit().putBoolean("auto",controllerView.automatic).apply();controllerView.invalidate()}
             override fun options(){this@PadActivity.options()}
+            override fun volume(){showTvVolume()}
         })
         controllerView.automatic=prefs.getBoolean("auto",true)
         controllerView.console=runCatching{Console.valueOf(prefs.getString("console","SNES")!!)}.getOrDefault(Console.SNES)
@@ -104,11 +108,41 @@ class PadActivity:Activity(),HidSession.Listener,RetroTvLink.Events,GoogleTvLink
     @Deprecated("Activity back dispatch")
     override fun onBackPressed(){if(controllerView.editing)controllerView.finishEditing() else super.onBackPressed()}
     override fun onStop(){
+        volumeKeys.clear();volumeDialog?.dismiss();volumeDialog=null
         controllerView.release();stopped=true;autoFind?.stop();autoFind=null;hid?.close();hid=null;retro?.close();retro=null;google?.close();google=null
         connected=null;ready=false;controllerView.connectedName="";controllerView.metadataLive=false;holdWifi(false);super.onStop()
     }
     override fun onDestroy(){destroyed=true;imports.shutdown();controllerView.customSkin?.close();super.onDestroy()}
     override fun onWindowFocusChanged(hasFocus:Boolean){super.onWindowFocusChanged(hasFocus);if(!hasFocus&&::controllerView.isInitialized)controllerView.release()}
+    private fun handleTvVolumeKey(event:KeyEvent)=when(event.action){
+        KeyEvent.ACTION_DOWN->if(event.isCanceled)false else volumeKeys.down(event.keyCode)
+        KeyEvent.ACTION_UP->volumeKeys.up(event.keyCode)
+        else->false
+    }
+    override fun dispatchKeyEvent(event:KeyEvent):Boolean=handleTvVolumeKey(event)||super.dispatchKeyEvent(event)
+    private fun showTvVolume(){
+        controllerView.release();volumeDialog?.dismiss()
+        volumeDialog=TvVolumeDialog(this,{google?.live==true},{increase->google?.adjustVolume(increase)?:false},
+            {connectVolumeTv()},::handleTvVolumeKey).also{it.show()}
+    }
+    /** Wi-Fi remote setup needs no Bluetooth permission and can coexist with the game connection. */
+    private fun connectVolumeTv(){
+        val labels=mutableListOf("Digitar endereço da TV…");val actions=mutableListOf<()->Unit>({
+            val field=EditText(this).apply{hint="Endereço IP da TV";setSingleLine()}
+            AlertDialog.Builder(this).setTitle("Conectar controle da TV")
+                .setMessage("Digite o endereço IP da TV na mesma rede Wi-Fi. A TV mostrará um código para parear.").setView(field)
+                .setPositiveButton("Conectar"){_,_->val host=field.text.toString().trim()
+                    if(host.matches(Regex("[A-Za-z0-9.-]{3,64}")))openGoogle(host,host) else status("Endereço inválido.")}
+                .setNegativeButton("Cancelar",null).show()
+        })
+        val seen=mutableSetOf<String>();val adapter=ArrayAdapter(this,android.R.layout.simple_list_item_1,labels)
+        val discovery=TvDiscovery(this){service->if(service.google&&seen.add(service.host)){
+            labels+=service.name;actions+={openGoogle(service.host,service.name)};adapter.notifyDataSetChanged()
+        }}
+        discovery.start()
+        AlertDialog.Builder(this).setTitle("Conectar controle da TV").setAdapter(adapter){_,index->actions.getOrNull(index)?.invoke()}
+            .setNegativeButton("Cancelar",null).setOnDismissListener{discovery.stop()}.show()
+    }
 
     // ---- HID (only where the phone offers it) ----
     override fun status(text:String){controllerView.connectionStatus=text;controllerView.invalidate()}
@@ -148,7 +182,7 @@ class PadActivity:Activity(),HidSession.Listener,RetroTvLink.Events,GoogleTvLink
         status("Conectando ao controle remoto de $label…")
     }
     override fun linkChanged(link:RetroTvLink,live:Boolean,text:String){if(link===retro){status(text);refreshRoute()}}
-    override fun linkChanged(link:GoogleTvLink,live:Boolean,text:String){if(link===google){status(text);refreshRoute()}}
+    override fun linkChanged(link:GoogleTvLink,live:Boolean,text:String){if(link===google){status(text);refreshRoute();volumeDialog?.refresh()}}
     override fun metadata(system:String,title:String,mode:String){
         controllerView.metadataTitle=title;controllerView.playMode=mode
         Console.fromSystem(system)?.let{if(controllerView.automatic)select(it,false)}

@@ -9,7 +9,7 @@ object PadLayout{
     fun groupOf(control:PadControl)=when{
         control.kind=="dpad"||control.id=="ok"->"dpad"
         control.kind=="leftStick"||control.kind=="rightStick"->"sticks"
-        control.id in setOf("select","start","pause","home","back","options")->"system"
+        control.id in setOf("select","start","pause","home","back","options","volume")->"system"
         !control.round&&control.id in setOf("l","r","l1","r1","l2","r2")->"shoulder"
         else->"face"
     }
