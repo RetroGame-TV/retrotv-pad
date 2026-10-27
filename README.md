@@ -6,23 +6,37 @@ Versão 0.3.5-dev, Android 9+, sem root. Não é um emulador de celular: os jogo
 
 ## Como é
 
-![Layout SNES](docs/images/layout-snes.png)
+![Modo realista SNES](docs/images/realistic-snes.png)
 
 | PS1 | Mega Drive |
 |---|---|
-| ![Layout PS1 com dois analógicos](docs/images/layout-ps1.png) | ![Layout Mega Drive com seis botões](docs/images/layout-mega.png) |
-| **NES** | **TV (navegar na galeria)** |
-| ![Layout NES](docs/images/layout-nes.png) | ![Controle remoto da TV com OK, Retornar, Início e Menu](docs/images/layout-tv.png) |
+| ![Modo realista PS1 com dois analógicos](docs/images/realistic-ps1.png) | ![Modo realista Mega Drive com seis botões](docs/images/realistic-mega.png) |
+| **NES** | **TV (sempre plana)** |
+| ![Modo realista NES](docs/images/realistic-nes.png) | ![Controle da TV plano com botão Volume](docs/images/tv-flat.png) |
+| **Game Boy** | **Arcade** |
+| ![Modo realista Game Boy](docs/images/realistic-gb.png) | ![Modo realista Arcade](docs/images/realistic-arcade.png) |
 
-Em todos os layouts, ⌂ volta ao menu principal do RetroTV, ↩ volta um passo e ❚❚ pausa. Capturas da versão 0.3.5 em paisagem (o chip "conectar" aparece porque o celular de teste não estava ligado a uma TV).
+Em todos os layouts, ⌂ volta ao menu principal do RetroTV, ↩ volta um passo e ❚❚ pausa. A aparência **clássica continua como padrão**. Para ativar o modo adicional, toque no chip do console > **Mais opções > Aparência dos controles > Realista**. A escolha fica salva e pode ser revertida para **Clássica** a qualquer momento.
+
+No modo realista, os seis modelos de jogo — NES, SNES, PS1, Mega Drive, Game Boy e Arcade — têm acabamento tridimensional desenhado em Canvas: aros, rebaixos, plástico acetinado, botões convexos e analógicos de borracha. Ao apertar, a face afunda no encaixe fixo, diminui, escurece e perde a sombra de elevação. O Arcade tem alavanca com haste metálica e esfera inclinável. As formas e os símbolos são vetoriais; uma pequena textura procedural dá granulação ao material, sem imagens de controles ou botões. Skins importadas mantêm sua aparência. **O controle da TV permanece plano em qualquer aparência.**
+
+Na TV, toque em **Volume** para aumentar ou diminuir sem fechar o painel. O volume usa a conexão do controle remoto do Google TV, na mesma rede Wi-Fi, e funciona também quando os jogos usam RetroTV ou HID. Se essa conexão ainda não existir, o próprio painel oferece **Conectar controle da TV**. Os botões físicos de volume do celular também ajustam a TV enquanto o app estiver aberto e conectado ao controle remoto; sem essa conexão, continuam com o comportamento normal do celular. O app não mostra uma porcentagem de volume sem confirmação da TV.
+
+Capturas do modo realista em Android, em paisagem e sem conexão com uma TV. O visual acompanha os ajustes de tamanho e posição em **Personalizar**. Veja os [testes e limites da validação visual](docs/realistic-controls.md).
+
+Em **Personalizar**, os analógicos esquerdo e direito, **Início (Home)** e **Voltar** são independentes: toque na peça para selecionar, arraste para mover e use **− / +** ou dois dedos para mudar seu tamanho. O editor identifica os analógicos como **Analógico E** e **Analógico D**. **Concluir** mantém os ajustes salvos para aquele console. As configurações antigas dos grupos compartilhados são convertidas preservando suas posições, tamanhos e espaçamento; **↺** restaura o layout do console atual.
+
+Com **AUTO**, as atualizações periódicas da TV preservam direcionais, botões e analógicos segurados. O layout só troca quando o console realmente muda. Veja a [correção do direcional interrompido e os testes](docs/input-latency.md#direcional-interrompido-pelo-auto).
 
 ## Formas de conexão
+
+O envio para jogar via RetroTV não espera um temporizador de analógicos: usa uma fila que mantém o movimento mais recente e preserva pressionar/soltar. O app solicita a entrega direta dos movimentos durante o jogo e envia o comando antes da vibração. Veja [mudanças de latência, testes e limites](docs/input-latency.md). A resposta total ainda depende do celular, da conexão e da TV.
 
 | Rota | Para que serve | Requisito |
 |---|---|---|
 | **Jogar (RetroTV)** | jogar: botões, direcional segurado, analógicos, AUTO, Início e Retornar | RetroTV Lite aberto na TV; Wi-Fi na mesma rede (encontra a TV sozinho) ou Bluetooth RFCOMM; código de 4 dígitos no primeiro pareamento |
 | **Bluetooth HID** | controle Bluetooth padrão, para qualquer app da TV | o fabricante do celular precisa oferecer o perfil Bluetooth HID Device |
-| **Só menus (controle remoto da TV)** | navegar no Google TV sem o RetroTV aberto | Google TV com o serviço de controle remoto (protocolo v2, porta 6467/6466) |
+| **Só menus (controle remoto da TV)** | navegar no Google TV e ajustar seu volume, sem precisar do RetroTV aberto | Google TV com o serviço de controle remoto (protocolo v2, porta 6467/6466) |
 
 ## Uso
 

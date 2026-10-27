@@ -12,7 +12,7 @@ import kotlin.math.*
  * chip that opens the layout/connection sheet. No screenshots or proprietary console logos are bundled.
  */
 class ControllerView(context:Context,private val callback:Callback):View(context){
-    interface Callback{fun send(state:PadState);fun connect();fun select(console:Console);fun auto();fun options()}
+    interface Callback{fun send(state:PadState);fun connect();fun select(console:Console);fun auto();fun options();fun volume(){}}
     var console=Console.SNES
     var automatic=true
     var connectedName=""
@@ -23,6 +23,8 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     var customSkin:DeltaSkin?=null
     private val ink=Paint(Paint.ANTI_ALIAS_FLAG)
     private val art=PadArt()
+    private val realisticArt by lazy{RealisticPadArt()}
+    private val flatTvArt by lazy{FlatTvArt()}
     private val input=PadInput()
     private var dirty=true
     private var scale=1f
@@ -47,9 +49,45 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     private fun offsetOf(group:String)=liveOffset[group]?:(prefs.getFloat("${scaleKey(group)}.x",0f)*logicalW to prefs.getFloat("${scaleKey(group)}.y",0f)*logicalH)
     private fun saveOffset(group:String,offset:Pair<Float,Float>){prefs.edit().putFloat("${scaleKey(group)}.x",offset.first/logicalW).putFloat("${scaleKey(group)}.y",offset.second/logicalH).apply()}
     private val prefs by lazy{context.getSharedPreferences("pad",Context.MODE_PRIVATE)}
+    var realisticAppearance=prefs.getBoolean("appearance.realistic",false)
+        private set
+    fun setRealisticAppearance(enabled:Boolean){
+        if(realisticAppearance==enabled)return
+        release();realisticAppearance=enabled
+        prefs.edit().putBoolean("appearance.realistic",enabled).apply()
+        invalidate()
+    }
     private fun scaleKey(group:String)="scale.${console.name}.$group"
     private fun scaleOf(group:String)=PadLayout.clamp(prefs.getFloat(scaleKey(group),1f))
     private fun setScale(group:String,value:Float){prefs.edit().putFloat(scaleKey(group),PadLayout.clamp(value)).apply();dirty=true;invalidate()}
+    private fun migrationKey(group:String)="layout.${console.name}.independent.$group"
+    private fun migrateLegacySettings(controls:List<PadControl>){
+        for(legacy in PadLayout.legacyGroups){
+            val marker=migrationKey(legacy);if(prefs.getBoolean(marker,false))continue
+            val old=scaleKey(legacy);val oldScale=prefs.getFloat(old,1f)
+            val oldX=prefs.getFloat("$old.x",0f);val oldY=prefs.getFloat("$old.y",0f)
+            val settings=PadLayout.splitLegacyGroup(controls,legacy,oldScale,oldX*logicalW to oldY*logicalH,logicalW,logicalH,6f)
+            if(settings.isEmpty())continue
+            val edit=prefs.edit()
+            if(prefs.contains(old)||prefs.contains("$old.x")||prefs.contains("$old.y")){
+                edit.putFloat("legacy.$old",oldScale).putFloat("legacy.$old.x",oldX).putFloat("legacy.$old.y",oldY)
+            }
+            for((group,value) in settings){val key=scaleKey(group)
+                if(group==legacy||(!prefs.contains(key)&&!prefs.contains("$key.x")&&!prefs.contains("$key.y"))){
+                    edit.putFloat(key,value.scale).putFloat("$key.x",value.dx/logicalW).putFloat("$key.y",value.dy/logicalH)
+                }
+            }
+            edit.putBoolean(marker,true).apply()
+        }
+    }
+    private fun resetLayout(){
+        val edit=prefs.edit()
+        (PadLayout.groups+PadLayout.legacyGroups).distinct().forEach{group->val key=scaleKey(group)
+            edit.remove(key).remove("$key.x").remove("$key.y").remove("legacy.$key").remove("legacy.$key.x").remove("legacy.$key.y")
+        }
+        PadLayout.legacyGroups.forEach{edit.remove(migrationKey(it))}
+        edit.apply();liveOffset.clear();dirty=true;invalidate()
+    }
     fun startEditing(){release();sheet=false;editing=true;dirty=true;invalidate()}
     fun finishEditing(){endDrag();editing=false;dirty=true;invalidate()}
     init{isFocusable=true;contentDescription="Controle Bluetooth RetroTV em tela cheia. Direcional à esquerda, botões à direita e o seletor de console no topo."}
@@ -82,8 +120,11 @@ class ControllerView(context:Context,private val callback:Callback):View(context
             val w=rep.width*fit;val h=rep.height*fit;val x=(logicalW-w)/2;val y=(logicalH-h)/2
             importedRect=RectF(x,y,x+w,y+h)
             result+=rep.controls.map{it.copy(box=Box(x+it.box.x*fit,y+it.box.y*fit,it.box.w*fit,it.box.h*fit))}
-        }else{layout(result);val sized=PadLayout.fitInside(PadLayout.applyOffsets(PadLayout.applyScales(result,PadLayout.groups.associateWith(::scaleOf)),PadLayout.groups.associateWith(::offsetOf)),logicalW,logicalH,6f);result.clear();result+=sized}
+        }else{layout(result);migrateLegacySettings(result);val sized=PadLayout.fitInside(PadLayout.applyOffsets(PadLayout.applyScales(result,PadLayout.groups.associateWith(::scaleOf)),PadLayout.groups.associateWith(::offsetOf)),logicalW,logicalH,6f);result.clear();result+=sized}
         input.controls=result;lastState=PadState();dirty=false
+        if(console==Console.TV&&!sheet&&!editing)result.firstOrNull{it.id=="volume"}?.let{control->
+            ui+=control.box to {release();callback.volume()}
+        }
     }
     /** Thumb zones: d-pad and face buttons sit low and inward, shoulders hug the top corners, system keys share the bottom centre. */
     private fun layout(result:MutableList<PadControl>){
@@ -98,12 +139,15 @@ class ControllerView(context:Context,private val callback:Callback):View(context
             result+=PadControl(id,Box(x-w/2,y-h/2,w,h),mask=console.mask(id),label=label,color=c(tint),round=false)
         }
         if(console==Console.TV){
-            // Remote: a big arrow ring with OK in the middle (listed first so it wins the centre), Back/Home/Menu on the right.
+            // Flat remote: OK wins the centre; navigation and the volume panel share a four-key column.
             val ring=minOf(H*.40f,170f);val rx=W*.36f;val ry=H*.56f;val ok=ring*.36f
             result+=PadControl("ok",Box(rx-ok,ry-ok,ok*2,ok*2),mask=console.mask("ok"),label="OK",color=c("#4A4752"))
             result+=PadControl("dpad",Box(rx-ring,ry-ring,ring*2,ring*2),"dpad")
-            val kx=W*.70f;val gap=minOf(H*.26f,100f)
-            button("back","↩",kx,ry-gap,34f,"#3A3842",10f);button("home","",kx,ry,34f,"#3A3842",10f);button("options","≡",kx,ry+gap,34f,"#3A3842",10f)
+            val kx=W*.70f;val gap=minOf(H*.23f,80f)
+            for((i,id) in listOf("back","home","options","volume").withIndex()){
+                val box=Box(kx-36f,H*.55f+(i-1.5f)*gap-26f,72f,52f)
+                result+=PadControl(id,box,kind=if(id=="volume")"action" else "button",mask=console.mask(id),round=false)
+            }
             return
         }
         result+=PadControl("dpad",Box(dx-pad*.62f,cy-pad*.62f,pad*1.24f,pad*1.24f),"dpad")
@@ -191,7 +235,7 @@ class ControllerView(context:Context,private val callback:Callback):View(context
         ui+=Box(t.left,t.top,t.width(),t.height()) to {}
         ui+=Box(x,t.top+4f,40f,40f) to {setScale(editGroup,scaleOf(editGroup)-.1f)};x+=44f+56f
         ui+=Box(x,t.top+4f,40f,40f) to {setScale(editGroup,scaleOf(editGroup)+.1f)};x+=48f
-        ui+=Box(x,t.top+4f,40f,40f) to {PadLayout.groups.forEach{prefs.edit().remove(scaleKey(it)).remove("${scaleKey(it)}.x").remove("${scaleKey(it)}.y").apply()};liveOffset.clear();dirty=true;invalidate()};x+=48f
+        ui+=Box(x,t.top+4f,40f,40f) to {resetLayout()};x+=48f
         ui+=Box(x,t.top+4f,t.right-x-6f,40f) to {finishEditing()}
     }
     private fun drawEditor(canvas:Canvas){
@@ -239,8 +283,11 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     }
     private fun drawChip(canvas:Canvas){
         val b=chip;val dark=look.dark;val live=connectedName.isNotEmpty()
-        ink.shader=null;ink.style=Paint.Style.FILL;ink.color=if(dark)art.alpha(Color.WHITE,22) else art.alpha(Color.BLACK,26);canvas.drawRoundRect(b.x,b.y,b.x+b.w,b.y+b.h,b.h/2,b.h/2,ink)
-        ink.color=if(live)c("#5FCB7A") else c("#E0A25A");canvas.drawCircle(b.x+20f,b.y+b.h/2,4.5f,ink)
+        if(realisticAppearance&&console!=Console.TV&&imported==null)realisticArt.chip(canvas,b,dark,live)
+        else{
+            ink.shader=null;ink.style=Paint.Style.FILL;ink.color=if(dark)art.alpha(Color.WHITE,22) else art.alpha(Color.BLACK,26);canvas.drawRoundRect(b.x,b.y,b.x+b.w,b.y+b.h,b.h/2,b.h/2,ink)
+            ink.color=if(live)c("#5FCB7A") else c("#E0A25A");canvas.drawCircle(b.x+20f,b.y+b.h/2,4.5f,ink)
+        }
         // AUTO only matters once a TV is connected; offline the chip invites to connect instead, so both fit.
         val label=console.label+when{!live->"  ·  conectar";automatic->"  ·  AUTO";else->""}
         text(canvas,b.x+b.w/2+8f,b.y+b.h/2+5f,label,13f,if(dark)c("#D8D2E2") else c("#4A4656"),true,b.w-44f,true)
@@ -266,6 +313,18 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     private fun centerOf(id:String)=input.controls.firstOrNull{it.id==id}?.box?.let{PointF(it.x+it.w/2,it.y+it.h/2)}
     private fun radiusOf(id:String)=input.controls.firstOrNull{it.id==id}?.let{it.box.w/2-(if(console==Console.SNES||console==Console.PS1)8f else if(console==Console.NES||console==Console.GB)6f else if(console==Console.TV)10f else 4f)}?:0f
     private fun drawConsole(canvas:Canvas,state:PadState){
+        if(console==Console.TV){
+            flatTvArt.background(canvas)
+            input.controls.sortedBy{if(it.kind=="dpad")0 else 1}.forEach{control->flatTvArt.control(canvas,control,state,pressed(control,state))}
+            return
+        }
+        if(realisticAppearance){
+            realisticArt.background(canvas,logicalW,logicalH,console,input.controls)
+            input.controls.sortedBy{if(it.kind=="dpad")0 else 1}.forEach{control->
+                realisticArt.control(canvas,control,state,console,pressed(control,state))
+            }
+            return
+        }
         val l=look;val mid=art.mix(l.top,l.bottom,.55f)
         ink.style=Paint.Style.FILL;ink.shader=LinearGradient(0f,0f,0f,logicalH,l.top,l.bottom,Shader.TileMode.CLAMP);canvas.drawRect(0f,0f,logicalW,logicalH,ink);ink.shader=null
         decor(canvas,l,mid)
@@ -345,12 +404,15 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     override fun onTouchEvent(event:MotionEvent):Boolean{
         if(dirty)build()
         if(editing){editTouch(event);return true}
+        // The destination is a remote game: send motion without waiting for the local display's vsync.
+        if(!sheet&&event.actionMasked==MotionEvent.ACTION_DOWN)requestUnbufferedDispatch(event)
         val action=event.actionMasked;val index=event.actionIndex;val id=event.getPointerId(index)
         val x=event.getX(index)/scale;val y=event.getY(index)/scale
+        var haptic=false
         when(action){
             MotionEvent.ACTION_DOWN,MotionEvent.ACTION_POINTER_DOWN->{
-                val item=if(sheet&&event.pointerCount==1)ui.lastOrNull{it.first.contains(x,y)} else if(!sheet)ui.lastOrNull{it.first.contains(x,y)}?.takeIf{event.pointerCount==1&&input.controls.none{c->c.box.contains(x,y)}} else null
-                if(item!=null)uiDown=id to item else if(!sheet){input.down(id,x,y);performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)}
+                val item=if(sheet&&event.pointerCount==1)ui.lastOrNull{it.first.contains(x,y)} else if(!sheet)ui.lastOrNull{it.first.contains(x,y)}?.takeIf{event.pointerCount==1&&input.controls.none{c->c.kind!="action"&&c.box.contains(x,y)}} else null
+                if(item!=null)uiDown=id to item else if(!sheet){input.down(id,x,y);haptic=true}
             }
             MotionEvent.ACTION_MOVE->if(!sheet)for(i in 0 until event.pointerCount)input.move(event.getPointerId(i),event.getX(i)/scale,event.getY(i)/scale)
             MotionEvent.ACTION_UP,MotionEvent.ACTION_POINTER_UP->{
@@ -360,7 +422,9 @@ class ControllerView(context:Context,private val callback:Callback):View(context
             }
             MotionEvent.ACTION_CANCEL->{uiDown=null;input.clear()}
         }
-        publish();return true
+        publish()
+        if(haptic)performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        return true
     }
     override fun performClick():Boolean{super.performClick();return true}
 }
