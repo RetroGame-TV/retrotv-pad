@@ -48,11 +48,12 @@ O painel oferece conexão Google TV por Wi-Fi quando necessária e desativa os a
 |---|---|
 | ![TV plana com Volume](images/tv-flat.png) | ![Painel de volume com opção para conectar a TV](images/tv-volume-panel.png) |
 
-## Validação em 26/10/2026
+## Validação em 27/10/2026
 
 - Compilação do app e do APK de testes com JDK 21, SDK 35 e Gradle 8.9.
-- 38 testes JVM passaram, incluindo volume e quatro testes de ajustes independentes/migração: peças isoladas, espaçamento legado dos analógicos, grupo antigo de Home/Voltar e correção conjunta nas bordas.
-- 16 testes Android passaram em Android 11/API 30 x86 virtual: três existentes, sete em `RealisticControllerTest`, dois em `TvVolumeAndroidTest` e quatro em `CustomizationAndroidTest`.
+- 44 testes JVM passaram, incluindo volume, ajustes independentes/migração e seis testes da nova fila de envio sem espera artificial dos analógicos.
+- 18 testes Android passaram em Android 11/API 30 x86 virtual: três existentes, sete em `RealisticControllerTest`, dois em `TvVolumeAndroidTest`, quatro em `CustomizationAndroidTest` e dois em `PadLatencyAndroidTest`.
+- Envio real via TCP local, rajada de 500 movimentos com pressão/soltura preservadas, eventos da View e microbenchmark de serialização. Veja [mudanças e limites da validação de latência](input-latency.md).
 - Os quatro controles independentes foram arrastados e redimensionados por MotionEvent sem alterar seus vizinhos, com recriação da View para verificar persistência. A migração dos ajustes antigos foi conferida uma única vez e o reset foi testado para impedir o reaparecimento dos valores antigos.
 - O painel de volume foi testado com um destino simulado: aumentar/diminuir repetidamente sem fechar, tecla física com painel aberto, atualização para desconectado e botão de conexão.
 - O gesto no botão Volume foi testado via MotionEvent: abre somente após toque completo, cancelar não abre e nenhum botão de jogo é enviado.
@@ -72,7 +73,7 @@ Comandos reproduzíveis (substitua o serial pelo seu emulador):
 ./gradlew :retropad:assembleDebug :retropad:assembleDebugAndroidTest :retropad:testDebugUnitTest :retropad:lintDebug
 adb -s emulator-5558 install -r retropad/build/outputs/apk/debug/retropad-debug.apk
 adb -s emulator-5558 install -r retropad/build/outputs/apk/androidTest/debug/retropad-debug-androidTest.apk
-adb -s emulator-5558 shell am instrument -w -e class org.retrotv.pad.PadAndroidTest,org.retrotv.pad.RealisticControllerTest,org.retrotv.pad.TvVolumeAndroidTest,org.retrotv.pad.CustomizationAndroidTest org.retrotv.pad.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5558 shell am instrument -w -e class org.retrotv.pad.PadAndroidTest,org.retrotv.pad.RealisticControllerTest,org.retrotv.pad.TvVolumeAndroidTest,org.retrotv.pad.CustomizationAndroidTest,org.retrotv.pad.PadLatencyAndroidTest org.retrotv.pad.test/androidx.test.runner.AndroidJUnitRunner
 adb -s emulator-5558 shell am start -W -S -n org.retrotv.pad/.PadActivity --es previewConsole SNES
 ```
 

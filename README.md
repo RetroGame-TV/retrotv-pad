@@ -28,6 +28,8 @@ Em **Personalizar**, os analógicos esquerdo e direito, **Início (Home)** e **V
 
 ## Formas de conexão
 
+O envio para jogar via RetroTV não espera um temporizador de analógicos: usa uma fila que mantém o movimento mais recente e preserva pressionar/soltar. O app solicita a entrega direta dos movimentos durante o jogo e envia o comando antes da vibração. Veja [mudanças de latência, testes e limites](docs/input-latency.md). A resposta total ainda depende do celular, da conexão e da TV.
+
 | Rota | Para que serve | Requisito |
 |---|---|---|
 | **Jogar (RetroTV)** | jogar: botões, direcional segurado, analógicos, AUTO, Início e Retornar | RetroTV Lite aberto na TV; Wi-Fi na mesma rede (encontra a TV sozinho) ou Bluetooth RFCOMM; código de 4 dígitos no primeiro pareamento |

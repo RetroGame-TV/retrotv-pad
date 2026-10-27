@@ -21,22 +21,9 @@ import kotlin.math.roundToInt
 object PadWire{
     const val WIFI_PORT=47800
     val KEEPALIVE="K\n".toByteArray()
-    fun input(state:PadState)="I %x %d %d %d %d %d".format(state.buttons and 0x30FFF,state.dpad and 15,axis(state.lx),axis(state.ly),axis(state.rx),axis(state.ry))
+    // Locale-independent and avoids constructing a Formatter on the touch/output path.
+    fun input(state:PadState)="I ${(state.buttons and 0x30FFF).toString(16)} ${state.dpad and 15} ${axis(state.lx)} ${axis(state.ly)} ${axis(state.rx)} ${axis(state.ry)}"
     private fun axis(value:Float)=(value.coerceIn(-1f,1f)*127).roundToInt()
-}
-
-/** Button and d-pad changes go out at once; stick-only changes at most every [interval] ms, so a moving stick cannot flood the TV. */
-class StickPacer(private val interval:Long=8){
-    private var sent:PadState?=null
-    private var sentAt=0L
-    /** 0 means send now; otherwise how many ms to wait before sending the newest state. */
-    @Synchronized fun delay(state:PadState,now:Long):Long{
-        val previous=sent
-        val wait=if(previous!=null&&previous.buttons==state.buttons&&previous.dpad==state.dpad)sentAt+interval-now else 0L
-        if(wait<=0L){sent=state;sentAt=now;return 0L}
-        return wait
-    }
-    @Synchronized fun sentLate(state:PadState,now:Long){sent=state;sentAt=now}
 }
 
 /** Any way of reaching the TV. */
@@ -81,21 +68,28 @@ class RetroTvLink private constructor(override val label:String,private val open
     init{writer.scheduleWithFixedDelay({out?.let{o->runCatching{o.write(PadWire.KEEPALIVE);o.flush()}}},5,5,TimeUnit.SECONDS)}
     @Volatile private var out:OutputStream?=null
     @Volatile private var channel:Channel?=null
-    @Volatile private var last:String?=null
+    @Volatile private var sender:PadStateSender?=null
+    @Volatile private var last=PadState()
     @Volatile private var cancelled=false
     fun start():RetroTvLink{
         val token=generation.incrementAndGet()
         Thread({
             while(token==generation.get()&&!cancelled){
-                var opened:Channel?=null;var failed:String?=null
+                var opened:Channel?=null;var output:PadStateSender?=null;var failed:String?=null
                 try{
                     opened=open();channel=opened
                     if(token!=generation.get())break
                     wifiKey?.let{handshake(opened,it,token)}
-                    out=opened.output;live=true
+                    if(token!=generation.get()||cancelled)break
+                    val active=opened
+                    output=PadStateSender(writer,{state->
+                        active.output.write((PadWire.input(state)+"\n").toByteArray(Charsets.US_ASCII));active.output.flush()
+                    },{active.close()})
+                    synchronized(this){
+                        // Queue the initial state before publishing this connection to touch events.
+                        output.offer(last);sender=output;out=opened.output;live=true
+                    }
                     main.post{if(token==generation.get())events.linkChanged(this,true,"Conectado a $label")}
-                    // An idle state right away lets the TV create its virtual controller before the first press.
-                    write(last?:PadWire.input(PadState()))
                     while(token==generation.get()){
                         val line=MetadataProtocol.readLine(opened.input)?:break
                         if(!line.startsWith("{"))continue
@@ -106,6 +100,7 @@ class RetroTvLink private constructor(override val label:String,private val open
                 }catch(e:Exception){
                     if(!cancelled)failed=failure(e)
                 }finally{
+                    output?.close();if(sender===output)sender=null
                     live=false;out=null;opened?.close?.invoke();if(channel===opened)channel=null
                     val text=failed?:"Reconectando a $label…";main.post{if(token==generation.get()&&!cancelled)events.linkChanged(this,false,text)}
                 }
@@ -143,19 +138,8 @@ class RetroTvLink private constructor(override val label:String,private val open
         }
         cancelled=true;throw java.io.IOException("Pairing refused")
     }
-    private fun write(line:String){val o=out?:return;writer.execute{runCatching{o.write((line+"\n").toByteArray());o.flush()}}}
-    private val pacer=StickPacer()
-    private val pending=java.util.concurrent.atomic.AtomicReference<PadState?>(null)
-    override fun send(state:PadState){
-        val line=PadWire.input(state);last=line
-        val wait=pacer.delay(state,android.os.SystemClock.uptimeMillis())
-        if(wait==0L){pending.set(null);write(line);return}
-        if(pending.getAndSet(state)==null)runCatching{writer.schedule({flush()},wait,TimeUnit.MILLISECONDS)}
+    @Synchronized override fun send(state:PadState){
+        last=state;sender?.offer(state)
     }
-    private fun flush(){
-        val state=pending.getAndSet(null)?:return
-        pacer.sentLate(state,android.os.SystemClock.uptimeMillis())
-        val o=out?:return;runCatching{o.write((PadWire.input(state)+"\n").toByteArray());o.flush()}
-    }
-    override fun close(){generation.incrementAndGet();cancelled=true;live=false;out=null;channel?.close?.invoke();channel=null;writer.shutdown()}
+    override fun close(){generation.incrementAndGet();cancelled=true;live=false;sender?.close();sender=null;out=null;channel?.close?.invoke();channel=null;writer.shutdown()}
 }

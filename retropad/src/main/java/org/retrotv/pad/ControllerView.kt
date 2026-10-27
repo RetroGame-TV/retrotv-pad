@@ -404,12 +404,15 @@ class ControllerView(context:Context,private val callback:Callback):View(context
     override fun onTouchEvent(event:MotionEvent):Boolean{
         if(dirty)build()
         if(editing){editTouch(event);return true}
+        // The destination is a remote game: send motion without waiting for the local display's vsync.
+        if(!sheet&&event.actionMasked==MotionEvent.ACTION_DOWN)requestUnbufferedDispatch(event)
         val action=event.actionMasked;val index=event.actionIndex;val id=event.getPointerId(index)
         val x=event.getX(index)/scale;val y=event.getY(index)/scale
+        var haptic=false
         when(action){
             MotionEvent.ACTION_DOWN,MotionEvent.ACTION_POINTER_DOWN->{
                 val item=if(sheet&&event.pointerCount==1)ui.lastOrNull{it.first.contains(x,y)} else if(!sheet)ui.lastOrNull{it.first.contains(x,y)}?.takeIf{event.pointerCount==1&&input.controls.none{c->c.kind!="action"&&c.box.contains(x,y)}} else null
-                if(item!=null)uiDown=id to item else if(!sheet){input.down(id,x,y);performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)}
+                if(item!=null)uiDown=id to item else if(!sheet){input.down(id,x,y);haptic=true}
             }
             MotionEvent.ACTION_MOVE->if(!sheet)for(i in 0 until event.pointerCount)input.move(event.getPointerId(i),event.getX(i)/scale,event.getY(i)/scale)
             MotionEvent.ACTION_UP,MotionEvent.ACTION_POINTER_UP->{
@@ -419,7 +422,9 @@ class ControllerView(context:Context,private val callback:Callback):View(context
             }
             MotionEvent.ACTION_CANCEL->{uiDown=null;input.clear()}
         }
-        publish();return true
+        publish()
+        if(haptic)performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        return true
     }
     override fun performClick():Boolean{super.performClick();return true}
 }

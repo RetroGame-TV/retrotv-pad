@@ -18,15 +18,11 @@ class PadLinksTest{
         assertEquals(1 shl 16,Console.SNES.mask("home"))
         assertEquals(listOf(3 to 1),GoogleTvKeys.events(PadState(),PadState(buttons=1 shl 16)))
     }
-    @Test fun sticksArePacedButButtonsAreNot(){
-        val p=StickPacer(8)
-        assertEquals(0L,p.delay(PadState(lx=.1f),100))
-        assertEquals(5L,p.delay(PadState(lx=.2f),103))
-        assertEquals(0L,p.delay(PadState(buttons=1,lx=.2f),104))
-        assertEquals(0L,p.delay(PadState(dpad=2,lx=.2f),105))
-        p.sentLate(PadState(dpad=2,lx=.3f),110)
-        assertEquals(4L,p.delay(PadState(dpad=2,lx=.4f),114))
-        assertEquals(0L,p.delay(PadState(dpad=2,lx=.5f),118))
+    @Test fun retroTvWireRemainsAsciiInNonLatinLocales(){
+        val saved=java.util.Locale.getDefault()
+        try{java.util.Locale.setDefault(java.util.Locale.forLanguageTag("ar-EG"))
+            assertEquals("I 201 9 127 -127 0 64",PadWire.input(PadState(buttons=0x201,dpad=9,lx=1.5f,ly=-2f,ry=.5f)))
+        }finally{java.util.Locale.setDefault(saved)}
     }
     @Test fun googleTvKeysPressAndReleaseOnlyWhatChanged(){
         val down=GoogleTvKeys.events(PadState(),PadState(buttons=1,dpad=8))
