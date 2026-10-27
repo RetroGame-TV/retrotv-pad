@@ -184,9 +184,11 @@ class PadActivity:Activity(),HidSession.Listener,RetroTvLink.Events,GoogleTvLink
     override fun linkChanged(link:RetroTvLink,live:Boolean,text:String){if(link===retro){status(text);refreshRoute()}}
     override fun linkChanged(link:GoogleTvLink,live:Boolean,text:String){if(link===google){status(text);refreshRoute();volumeDialog?.refresh()}}
     override fun metadata(system:String,title:String,mode:String){
+        val changed=controllerView.metadataTitle!=title||controllerView.playMode!=mode
         controllerView.metadataTitle=title;controllerView.playMode=mode
-        Console.fromSystem(system)?.let{if(controllerView.automatic)select(it,false)}
-        controllerView.invalidate()
+        // The TV repeats context every second. Rebuilding the same console releases every held contact.
+        Console.fromSystem(system)?.let{if(controllerView.automatic&&controllerView.console!=it)select(it,false)}
+        if(changed)controllerView.invalidate()
     }
     override fun askCode(link:RetroTvLink,retry:Boolean,answer:(String?)->Unit){
         if(link!==retro){answer(null);return}

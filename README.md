@@ -26,6 +26,8 @@ Capturas do modo realista em Android, em paisagem e sem conexão com uma TV. O v
 
 Em **Personalizar**, os analógicos esquerdo e direito, **Início (Home)** e **Voltar** são independentes: toque na peça para selecionar, arraste para mover e use **− / +** ou dois dedos para mudar seu tamanho. O editor identifica os analógicos como **Analógico E** e **Analógico D**. **Concluir** mantém os ajustes salvos para aquele console. As configurações antigas dos grupos compartilhados são convertidas preservando suas posições, tamanhos e espaçamento; **↺** restaura o layout do console atual.
 
+Com **AUTO**, as atualizações periódicas da TV preservam direcionais, botões e analógicos segurados. O layout só troca quando o console realmente muda. Veja a [correção do direcional interrompido e os testes](docs/input-latency.md#direcional-interrompido-pelo-auto).
+
 ## Formas de conexão
 
 O envio para jogar via RetroTV não espera um temporizador de analógicos: usa uma fila que mantém o movimento mais recente e preserva pressionar/soltar. O app solicita a entrega direta dos movimentos durante o jogo e envia o comando antes da vibração. Veja [mudanças de latência, testes e limites](docs/input-latency.md). A resposta total ainda depende do celular, da conexão e da TV.
