@@ -24,6 +24,13 @@ object PadWire{
     // Locale-independent and avoids constructing a Formatter on the touch/output path.
     fun input(state:PadState)="I ${(state.buttons and 0x30FFF).toString(16)} ${state.dpad and 15} ${axis(state.lx)} ${axis(state.ly)} ${axis(state.rx)} ${axis(state.ry)}"
     private fun axis(value:Float)=(value.coerceIn(-1f,1f)*127).roundToInt()
+    // Complete state in nine bytes, including Home/Back and four independent axes.
+    // Only used after the TV advertises inputBinary=1 in its normal metadata.
+    fun binary(state:PadState):ByteArray{
+        val b=state.buttons and 0x30FFF
+        return byteArrayOf(0xF1.toByte(),b.toByte(),(b ushr 8).toByte(),(b ushr 16).toByte(),(state.dpad and 15).toByte(),axis(state.lx).toByte(),axis(state.ly).toByte(),axis(state.rx).toByte(),axis(state.ry).toByte())
+    }
+    fun sameInput(a:PadState,b:PadState)=a.buttons==b.buttons&&a.dpad==b.dpad&&axis(a.lx)==axis(b.lx)&&axis(a.ly)==axis(b.ly)&&axis(a.rx)==axis(b.rx)&&axis(a.ry)==axis(b.ry)
 }
 
 /** Any way of reaching the TV. */
@@ -82,9 +89,10 @@ class RetroTvLink private constructor(override val label:String,private val open
                     wifiKey?.let{handshake(opened,it,token)}
                     if(token!=generation.get()||cancelled)break
                     val active=opened
+                    val binary=java.util.concurrent.atomic.AtomicBoolean(false)
                     output=PadStateSender(writer,{state->
-                        active.output.write((PadWire.input(state)+"\n").toByteArray(Charsets.US_ASCII));active.output.flush()
-                    },{active.close()})
+                        active.output.write(if(binary.get())PadWire.binary(state) else (PadWire.input(state)+"\n").toByteArray(Charsets.US_ASCII));active.output.flush()
+                    },{active.close()},equivalent=PadWire::sameInput)
                     synchronized(this){
                         // Queue the initial state before publishing this connection to touch events.
                         output.offer(last);sender=output;out=opened.output;live=true
@@ -94,6 +102,7 @@ class RetroTvLink private constructor(override val label:String,private val open
                         val line=MetadataProtocol.readLine(opened.input)?:break
                         if(!line.startsWith("{"))continue
                         val json=JSONObject(line);if(json.optInt("version")!=1)continue
+                        binary.set(json.optInt("inputBinary")==1)
                         val system=json.optString("system").take(64);val title=json.optString("title").take(160);val mode=json.optString("mode").take(24)
                         main.post{if(token==generation.get())events.metadata(system,title,mode)}
                     }

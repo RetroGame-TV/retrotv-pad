@@ -9,16 +9,20 @@ internal class PadStateSender(
     private val executor:Executor,
     private val write:(PadState)->Unit,
     private val failed:()->Unit,
-    private val capacity:Int=32
+    private val capacity:Int=32,
+    private val equivalent:(PadState,PadState)->Boolean={a,b->a==b}
 ):AutoCloseable{
     private val queue=java.util.ArrayDeque<PadState>()
     private var running=false
     private var closed=false
+    private var lastOffered:PadState?=null
     init{require(capacity>0)}
     fun offer(state:PadState){
         var start=false;var overflow=false
         synchronized(this){
             if(closed)return
+            if(lastOffered?.let{equivalent(it,state)}==true)return
+            lastOffered=state
             val tail=queue.peekLast()
             if(tail!=null&&tail.buttons==state.buttons&&tail.dpad==state.dpad)queue.removeLast()
             if(queue.size>=capacity){closed=true;queue.clear();overflow=true}
