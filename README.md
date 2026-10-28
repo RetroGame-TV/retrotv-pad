@@ -1,5 +1,7 @@
 # RetroTV Pad
 
+0.3.6-dev: entrada de 9 bytes negociada em RFCOMM/Wi-Fi, com fallback para TV antiga e descarte somente de estados equivalentes após quantização. [Testes e limites](docs/compact-input.md).
+
 Controle Android para o [RetroTV Lite](https://github.com/RetroGame-TV/retrotv-lite): o celular vira o controle do console que está rodando na TV, com layouts próprios por console e troca automática de layout.
 
 Versão 0.3.5-dev, Android 9+, sem root. Não é um emulador de celular: os jogos rodam na TV.
